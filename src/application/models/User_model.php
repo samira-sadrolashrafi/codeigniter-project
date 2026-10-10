@@ -13,9 +13,20 @@ class User_model extends CI_Model
         return (int) $this->db->insert_id();
     }
 
+    // Includes soft-deleted users: username/email are globally UNIQUE in the ERD.
     public function find_by_username($username)
     {
         return $this->db->where('username', $username)->get($this->table)->row();
+    }
+
+    // Check whether a session still belongs to an active user.
+    public function find_active_by_id($user_id)
+    {
+        return $this->db
+            ->where('id', $user_id)
+            ->where('deleted_at', null)
+            ->get($this->table)
+            ->row();
     }
 
     public function find_by_email($email)
@@ -25,21 +36,40 @@ class User_model extends CI_Model
 
     public function find_by_remember_token($hashed_token)
     {
-        return $this->db->where('remember_token', $hashed_token)->where('deleted_at IS NULL', null, false)->get($this->table)->row();
+        return $this->db
+            ->where('remember_token', $hashed_token)
+            ->where('deleted_at', null)
+            ->get($this->table)->row();
     }
 
     public function lock_active_by_id($user_id)
     {
-        return $this->db->query('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE',array($user_id))->row();
+        $query = $this->db->query(
+            'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+            array($user_id)
+        );
+        return $query ? $query->row() : false;
     }
 
     public function update_remember_token($user_id, $hash, $expires_at)
     {
-        return $this->db->where('id', $user_id)->where('deleted_at IS NULL', null, false)->update($this->table, array('remember_token' => $hash,'remember_token_expires_at' => $expires_at));
+        $query_success = $this->db
+            ->where('id', $user_id)
+            ->where('deleted_at', null)
+            ->update($this->table, array(
+                'remember_token' => $hash,
+                'remember_token_expires_at' => $expires_at
+            ));
+
+        // A new random token must change exactly one active user record.
+        return $query_success && $this->db->affected_rows() === 1;
     }
 
     public function clear_remember_token($user_id)
     {
-        return $this->db->where('id', $user_id)->update($this->table, array('remember_token' => null,'remember_token_expires_at' => null));
+        return $this->db->where('id', $user_id)->update($this->table, array(
+            'remember_token' => null,
+            'remember_token_expires_at' => null
+        ));
     }
 }

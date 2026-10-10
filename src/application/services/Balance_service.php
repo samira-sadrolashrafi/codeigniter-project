@@ -1,22 +1,19 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-
 class Balance_service
 {
-
     protected $CI;
 
     public function __construct()
     {
         $this->CI =& get_instance();
-
         $this->CI->load->model('Balance_model');
-
         $this->CI->load->model('User_model');
     }
 
-     public function normalize_amount($amount, $allow_negative = false)
+    // Return a normalized DECIMAL(15,2) string, or false. Never use floats for money.
+    public function normalize_amount($amount, $allow_negative = false)
     {
         if (!is_string($amount) && !is_int($amount)) {
             return false;
@@ -46,100 +43,56 @@ class Balance_service
 
     public function create_initial_balance($user_id)
     {
-        if((int) $user_id <= 0)
-        {
+        if ((int) $user_id <= 0) {
             return false;
         }
-
         return $this->CI->Balance_model->create(array(
             'user_id' => $user_id,
             'balance' => '0.00',
             'created_at' => date('Y-m-d H:i:s')
         ));
-
-    }
-
-    public function change_by($user_id, $signed_amount)
-    {
-        $ok = $this->db->query(
-            'UPDATE balances
-            SET balance = balance + CAST(? AS DECIMAL(15,2)),
-                updated_at = ?
-            WHERE user_id = ?
-            AND deleted_at IS NULL',
-            array(
-                $signed_amount,
-                date('Y-m-d H:i:s'),
-                $user_id
-            )
-        );
-
-        return $ok && $this->db->affected_rows() === 1;
     }
 
     public function increase($user_id, $amount)
     {
         $amount = $this->normalize_amount($amount);
-
         if ($amount === false) {
             return false;
         }
-
-        return $this->CI->Balance_model->change_by($user_id,$amount);
+        return $this->CI->Balance_model->change_by($user_id, $amount);
     }
-
 
     public function decrease($user_id, $amount)
     {
         $amount = $this->normalize_amount($amount);
-
         if ($amount === false) {
             return false;
         }
-
         return $this->CI->Balance_model->change_by($user_id, '-' . $amount);
     }
-        
 
-    public function apply_transaction_effect($user_id,$type,$amount)
+    public function apply_transaction_effect($user_id, $type, $amount)
     {
-
         if ($type === 'income') {
-
-            return $this->increase($user_id,$amount);
-
+            return $this->increase($user_id, $amount);
         }
-
         if ($type === 'expense') {
-
-            return $this->decrease($user_id,$amount);
-
+            return $this->decrease($user_id, $amount);
         }
-
-        return false;
-
-    }
-
-
-    public function reverse_transaction_effect($user_id,$type,$amount)
-    {
-
-        if ($type === 'income') {
-
-            return $this->decrease($user_id,$amount);
-
-        }
-
-        if ($type === 'expense') {
-
-            return $this->increase($user_id,$amount);
-
-        }
-
         return false;
     }
 
-    
+    public function reverse_transaction_effect($user_id, $type, $amount)
+    {
+        if ($type === 'income') {
+            return $this->decrease($user_id, $amount);
+        }
+        if ($type === 'expense') {
+            return $this->increase($user_id, $amount);
+        }
+        return false;
+    }
+
     public function update_manual_balance($user_id, $new_balance)
     {
         $new_balance = $this->normalize_amount($new_balance, true);
@@ -149,14 +102,10 @@ class Balance_service
 
         $db = $this->CI->db;
         $db->trans_begin();
-        if (!$this->CI->User_model->lock_active_by_id($user_id) ||
-            !$this->CI->Balance_model->find_by_user_id($user_id) ||
-            !$this->CI->Balance_model->update_balance($user_id, $new_balance) ||
-            $db->trans_status() === false) {
+        if (!$this->CI->User_model->lock_active_by_id($user_id) || !$this->CI->Balance_model->find_by_user_id($user_id) || !$this->CI->Balance_model->update_balance($user_id, $new_balance) || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }
         return $db->trans_commit();
     }
-
 }

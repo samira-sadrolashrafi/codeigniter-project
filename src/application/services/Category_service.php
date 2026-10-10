@@ -19,17 +19,14 @@ class Category_service
 
     public function create($user_id, $data)
     {
-        if (!is_array($data) || !isset($data['name'], $data['type']) ||
-            !$this->valid_name($data['name']) ||
-            !in_array($data['type'], array('income', 'expense'), true)) {
+        if (!is_array($data) || !isset($data['name'], $data['type']) || !$this->valid_name($data['name']) || !in_array($data['type'], array('income', 'expense'), true)) {
             return false;
         }
-
         $name = trim($data['name']);
         $db = $this->CI->db;
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id) ||$this->check_duplicate_name($user_id, $name)) {
+        if (!$this->CI->User_model->lock_active_by_id($user_id) || $this->check_duplicate_name($user_id, $name)) {
             $db->trans_rollback();
             return false;
         }
@@ -52,10 +49,8 @@ class Category_service
         if (!is_array($data) || (!array_key_exists('name', $data) && !array_key_exists('type', $data))) {
             return false;
         }
-
         $db = $this->CI->db;
         $db->trans_begin();
-
         if (!$this->CI->User_model->lock_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
@@ -67,7 +62,6 @@ class Category_service
         }
 
         $changes = array();
-
         if (array_key_exists('name', $data)) {
             if (!$this->valid_name($data['name'])) {
                 $db->trans_rollback();
@@ -85,17 +79,17 @@ class Category_service
                 $db->trans_rollback();
                 return false;
             }
-
-            if ($data['type'] !== $category->type && $this->CI->Transaction_model->has_any_by_category($user_id, $category_id)) {
+            // A category's type defines ALL its transactions, including deleted ones.
+            if ($data['type'] !== $category->type &&
+                $this->CI->Transaction_model->has_any_by_category($user_id, $category_id)) {
                 $db->trans_rollback();
                 return false;
             }
             $changes['type'] = $data['type'];
         }
-
         $changes['updated_at'] = date('Y-m-d H:i:s');
-        $ok = $this->CI->Category_model->update_owned_active($user_id, $category_id, $changes);
-        if (!$ok || $db->trans_status() === false) {
+        $querysuccess = $this->CI->Category_model->update_owned_active($user_id, $category_id, $changes);
+        if (!$querysuccess || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }
@@ -106,24 +100,26 @@ class Category_service
     {
         $db = $this->CI->db;
         $db->trans_begin();
-
         if (!$this->CI->User_model->lock_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
-
         $category = $this->CI->Category_model->find_owned_for_update($user_id, $category_id);
         if (!$category || $category->deleted_at !== null) {
             $db->trans_rollback();
             return false;
         }
-
         $now = date('Y-m-d H:i:s');
         $until = date('Y-m-d H:i:s', time() + $this->restore_days * 86400);
         $transactions = $this->CI->Transaction_model->find_active_by_category_for_update($user_id, $category_id);
+        if ($transactions === false) {
+            $db->trans_rollback();
+            return false;
+        }
 
         foreach ($transactions as $transaction) {
-            if (!$this->CI->Transaction_model->soft_delete_owned($user_id, $transaction->id, $now, $until) ||!$this->balance_service->reverse_transaction_effect(
+            if (!$this->CI->Transaction_model->soft_delete_owned($user_id, $transaction->id, $now, $until) ||
+                !$this->balance_service->reverse_transaction_effect(
                     $user_id, $category->type, $transaction->amount
                 )) {
                 $db->trans_rollback();
@@ -147,13 +143,15 @@ class Category_service
             return false;
         }
         $category = $this->CI->Category_model->find_owned_for_update($user_id, $category_id);
-        if (!$category || !$category->deleted_at || !$category->restore_until || strtotime($category->restore_until) <= time() || $this->check_duplicate_name($user_id, $category->name, $category_id)) {
+        if (!$category || !$category->deleted_at || !$category->restore_until ||
+            strtotime($category->restore_until) <= time() ||
+            $this->check_duplicate_name($user_id, $category->name, $category_id)) {
             $db->trans_rollback();
             return false;
         }
 
-        $ok = $this->CI->Category_model->restore_owned($user_id, $category_id);
-        if (!$ok || $db->trans_status() === false) {
+        $querysuccess = $this->CI->Category_model->restore_owned($user_id, $category_id);
+        if (!$querysuccess || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }
@@ -162,18 +160,19 @@ class Category_service
 
     private function valid_name($name)
     {
-        return is_string($name) && preg_match('/^.{1,100}$/u', trim($name)) === 1;
+        return is_string($name) &&
+            preg_match('/^.{1,100}$/u', trim($name)) === 1;
     }
 
     private function check_duplicate_name($user_id, $name, $ignore_id = null)
     {
         $categories = $this->CI->Category_model->find_all_by_name($user_id, $name);
-
         foreach ($categories as $category) {
             if ($ignore_id !== null && (int) $category->id === (int) $ignore_id) {
                 continue;
             }
-            if ($category->deleted_at === null || ($category->restore_until && strtotime($category->restore_until) > time())) {
+            if ($category->deleted_at === null ||
+                ($category->restore_until && strtotime($category->restore_until) > time())) {
                 return true;
             }
         }
