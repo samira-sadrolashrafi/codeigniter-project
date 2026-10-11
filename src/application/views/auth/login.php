@@ -33,8 +33,9 @@ $this->load->view('layouts/header', array(
 
                     <form
                         id="loginForm"
-                        action="<?php echo site_url('auth_api/login'); ?>"
+                        action="<?php echo site_url('auth/login'); ?>"
                         method="POST"
+                        data-success-url="<?php echo site_url('dashboard'); ?>"
                         novalidate>
 
                         <!-- Username -->

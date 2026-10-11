@@ -44,6 +44,25 @@ class Category_service
         return $db->trans_commit() ? $id : false;
     }
 
+    public function get($user_id, $category_id)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        $category = $this->CI->Category_model->find_owned_by_id($user_id, $category_id);
+        return ($category && $category->deleted_at === null) ? $category : false;
+    }
+
+    public function get_all($user_id)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        return $this->CI->Category_model->find_active_by_user_id($user_id);
+    }
+
     public function update($user_id, $category_id, $data)
     {
         if (!is_array($data) || (!array_key_exists('name', $data) && !array_key_exists('type', $data))) {

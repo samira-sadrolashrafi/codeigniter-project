@@ -77,6 +77,25 @@ class Transaction_service
         return $db->trans_commit() ? $id : false;
     }
 
+    public function get($user_id, $transaction_id)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        $transaction = $this->CI->Transaction_model->find_owned_by_id($user_id, $transaction_id);
+        return ($transaction && $transaction->deleted_at === null) ? $transaction : false;
+    }
+
+    public function get_all($user_id)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        return $this->CI->Transaction_model->find_active_by_user_id($user_id);
+    }
+
     public function update($user_id, $transaction_id, $data)
     {
         $values = $this->validate_data($data);

@@ -22,6 +22,13 @@ class Category_model extends CI_Model
         return $query ? $query->row() : false;
     }
 
+    public function find_owned_by_id($user_id, $category_id)
+    {
+        return $this->db->where('id', $category_id)
+            ->where('user_id', $user_id)
+            ->get($this->table)->row();
+    }
+
     public function find_all_by_name($user_id, $name)
     {
         return $this->db

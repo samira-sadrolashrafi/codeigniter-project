@@ -56,7 +56,8 @@ class Balance_service
     public function increase($user_id, $amount)
     {
         $amount = $this->normalize_amount($amount);
-        if ($amount === false) {
+        if ($amount === false || !$this->CI->User_model->lock_active_by_id($user_id) ||
+            !$this->CI->Balance_model->find_by_user_id($user_id)) {
             return false;
         }
         return $this->CI->Balance_model->change_by($user_id, $amount);
@@ -65,10 +66,20 @@ class Balance_service
     public function decrease($user_id, $amount)
     {
         $amount = $this->normalize_amount($amount);
-        if ($amount === false) {
+        if ($amount === false || !$this->CI->User_model->lock_active_by_id($user_id) ||
+            !$this->CI->Balance_model->find_by_user_id($user_id)) {
             return false;
         }
         return $this->CI->Balance_model->change_by($user_id, '-' . $amount);
+    }
+
+    public function get($user_id)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        return $this->CI->Balance_model->find_by_user_id($user_id);
     }
 
     public function apply_transaction_effect($user_id, $type, $amount)

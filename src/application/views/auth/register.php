@@ -33,7 +33,7 @@ $this->load->view('layouts/header', array(
 
                     <form
                         id="registerForm"
-                        action="<?php echo site_url('auth_api/register'); ?>"
+                        action="<?php echo site_url('auth/register'); ?>"
                         method="POST"
                         data-success-url="<?php echo site_url('login'); ?>"
                         novalidate>

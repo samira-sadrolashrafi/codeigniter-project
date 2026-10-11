@@ -16,14 +16,9 @@ class Auth_api extends CI_Controller
         $this->auth_service = new Auth_service();
     }
 
-
     
     public function register()
     {
-        if ($this->input->method(TRUE) !== 'POST') {
-            return $this->respond(false, 'روش درخواست نامعتبر است.', 405);
-        }
-
         if (isLoggedIn()) {
             return $this->respond(false, 'شما قبلاً وارد حساب کاربری شده‌اید.', 409);
         }
@@ -101,10 +96,6 @@ class Auth_api extends CI_Controller
     
     public function login()
     {
-        if ($this->input->method(TRUE) !== 'POST') {
-            return $this->respond(false, 'روش درخواست نامعتبر است.', 405);
-        }
-
         $username = $this->input->post('username');
         $password = $this->input->post('password');
 
@@ -160,10 +151,6 @@ class Auth_api extends CI_Controller
 
     public function logout()
     {
-        if ($this->input->method(TRUE) !== 'POST') {
-            return $this->respond(false, 'روش درخواست نامعتبر است.', 405);
-        }
-
         if (!$this->auth_service->logout()) {
             return $this->respond(
                 false,

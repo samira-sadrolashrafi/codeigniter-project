@@ -22,6 +22,13 @@ class Transaction_model extends CI_Model
         return $query ? $query->row() : false;
     }
 
+    public function find_owned_by_id($user_id, $transaction_id)
+    {
+        return $this->db->where('id', $transaction_id)
+            ->where('user_id', $user_id)
+            ->get($this->table)->row();
+    }
+
     public function find_active_by_category_for_update($user_id, $category_id)
     {
         $query = $this->db->query(
