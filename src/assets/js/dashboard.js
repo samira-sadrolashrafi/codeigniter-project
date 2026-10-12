@@ -1,10 +1,13 @@
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', initializeDashboard);
 
+
+function initializeDashboard() {
     loadBalance();
 
-    const form = document.getElementById('balanceForm');
+    const balanceForm = document.getElementById('balanceForm');
     const logoutButton = document.getElementById('logoutButton');
     const balanceInput = document.getElementById('balanceInput');
+    const resetBalanceButton = document.getElementById('resetBalanceButton');
 
     if (balanceInput) {
         balanceInput.addEventListener('input', formatBalanceInput);
@@ -14,176 +17,271 @@ document.addEventListener('DOMContentLoaded', function () {
         logoutButton.addEventListener('click', logout);
     }
 
-    if (form) {
-
-        form.addEventListener('submit', function (e) {
-
-            e.preventDefault();
-
-            updateBalance();
-
-        });
-
+    if (resetBalanceButton) {
+        resetBalanceButton.addEventListener('click', resetBalance);
     }
 
-});
+    if (balanceForm) {
+        balanceForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            updateBalance();
+        });
+    }
+}
 
 
-function logout() {
+async function logout() {
     const button = document.getElementById('logoutButton');
+
     button.disabled = true;
 
-    fetch('/auth/logout', {
-        method: 'POST',
-        headers: {
-            'Accept': 'application/json'
-        }
-    })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = '/login';
-                return;
-            }
+    try {
 
+        const response = await fetch('/auth/logout', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
             showMessage(data.message || 'خروج از حساب انجام نشد.', 'danger');
             button.disabled = false;
-        })
-        .catch(() => {
-            showMessage('خطا در خروج از حساب.', 'danger');
-            button.disabled = false;
-        });
-}
-
-
-function loadBalance() {
-    fetch('/api/dashboard/balance', {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json'
+            return;
         }
-    })
 
-        .then(response => response.json())
+        window.location.href = '/login';
 
-        .then(data => {
+    } catch (error) {
 
-            if (data.success) {
+        showMessage('خطا در خروج از حساب.', 'danger');
+        button.disabled = false;
 
-                document.getElementById('balanceAmount').innerText =
-                    formatAmount(data.balance) + ' تومان';
-
-            } else {
-
-                showMessage(data.message, 'danger');
-
-            }
-
-        })
-
-        .catch(() => {
-
-            showMessage(
-                'خطا در دریافت موجودی.',
-                'danger'
-            );
-
-        });
+    }
 }
 
 
-function updateBalance() {
-    const balance =
-        document.getElementById('balanceInput').value.replace(/,/g, '');
+async function loadBalance() {
+    try {
+
+        const response = await fetch('/api/dashboard/balance', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            showMessage(data.message, 'danger');
+            return;
+        }
+
+        renderBalance(data.balance);
+
+    } catch (error) {
+
+        showMessage('خطا در دریافت موجودی.', 'danger');
+
+    }
+}
 
 
-    const formData = new FormData();
+function renderBalance(balance) {
+    const balanceElement = document.getElementById('balanceAmount');
+    const debtElement = document.getElementById('debtAmount');
 
-    formData.append(
-        'balance',
-        balance
+    balance = Number(balance);
+
+    if (balance < 0) {
+        balanceElement.innerText = '0 تومان';
+        debtElement.innerText = formatAmount(Math.abs(balance)) + ' تومان';
+        return;
+    }
+
+    balanceElement.innerText = formatAmount(balance) + ' تومان';
+    debtElement.innerText = '0 تومان';
+}
+
+
+async function updateBalance() {
+    const input = document.getElementById('balanceInput');
+    const balance = input.value.replace(/,/g, '');
+
+    await sendBalanceUpdate(balance, input);
+}
+
+
+async function resetBalance() {
+    const confirmReset = confirm(
+        'آیا مطمئن هستید که می‌خواهید موجودی را صفر کنید؟'
     );
 
+    if (!confirmReset) {
+        return;
+    }
 
-    fetch('/api/dashboard/balance', {
-        method: 'POST',
-        body: formData
+    try {
 
-    })
-
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showMessage(
-                    data.message,
-                    'success'
-                );
-                loadBalance();
-                document.getElementById('balanceInput').value = '';
-            } else {
-                showMessage(
-                    data.message,
-                    'danger'
-                );
+        const response = await fetch('/api/dashboard/balance', {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
             }
-        })
-
-        .catch(() => {
-            showMessage(
-                'خطا در تغییر موجودی.',
-                'danger'
-            );
         });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            showMessage(data.message, 'danger');
+            return;
+        }
+
+        const currentBalance = Number(data.balance);
+
+        const adjustment = -currentBalance;
+
+        await sendBalanceUpdate(
+            adjustment.toString()
+        );
+
+    } catch (error) {
+
+        showMessage(
+            'خطا در صفر کردن موجودی.',
+            'danger'
+        );
+
+    }
 }
+
+async function sendBalanceUpdate(balance, input = null) {
+    const formData = new FormData();
+
+    formData.append('balance', balance);
+
+    try {
+
+        const response = await fetch('/api/dashboard/balance', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            showMessage(data.message, 'danger');
+            return;
+        }
+
+        showMessage(data.message, 'success');
+
+        if (input) {
+            input.value = '';
+        }
+
+        loadBalance();
+
+    } catch (error) {
+
+        showMessage('خطا در تغییر موجودی.', 'danger');
+
+    }
+}
+
 
 function formatBalanceInput(event) {
     const input = event.target;
-    const rawValue = input.value;
-    const caret = input.selectionStart;
-    const digitsBeforeCaret = rawValue.slice(0, caret).replace(/[^0-9]/g, '').length;
+    const cursorPosition = input.selectionStart;
 
-    let value = rawValue.replace(/[^0-9.\-]/g, '');
-    const isNegative = value.charAt(0) === '-';
-    value = value.replace(/-/g, '').replace(/\.(?=.*\.)/g, '');
+    const numbersBeforeCursor = input.value
+        .slice(0, cursorPosition)
+        .replace(/[^0-9]/g, '')
+        .length;
 
-    const parts = value.split('.', 2);
-    const integer = parts[0].replace(/^0+(?=\d)/, '');
-    const fraction = parts.length > 1 ? '.' + parts[1].slice(0, 2) : '';
-    const formattedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const formatted = (isNegative ? '-' : '') + formattedInteger + fraction;
+    let value = input.value;
 
-    input.value = formatted;
-    let newCaret = 0;
-    let digitCount = 0;
-    while (newCaret < formatted.length && digitCount < digitsBeforeCaret) {
-        if (/\d/.test(formatted[newCaret])) digitCount++;
-        newCaret++;
+    value = value.replace(/[^0-9-]/g, '');
+
+    if (value === '-') {
+        input.value = value;
+        return;
     }
-    input.setSelectionRange(newCaret, newCaret);
+
+    const isNegative = value.startsWith('-');
+
+    value = value.replace(/-/g, '');
+
+    let integerPart = value;
+
+    integerPart = integerPart.replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        ','
+    );
+
+    let formattedValue = integerPart;
+
+    if (isNegative && formattedValue) {
+        formattedValue = '-' + formattedValue;
+    }
+
+    input.value = formattedValue;
+
+    restoreCursor(input, numbersBeforeCursor);
 }
 
+
+function restoreCursor(input, numbersBeforeCursor) {
+    let cursorPosition = 0;
+    let numberCount = 0;
+
+    while (
+        cursorPosition < input.value.length &&
+        numberCount < numbersBeforeCursor
+    ) {
+
+        if (/\d/.test(input.value[cursorPosition])) {
+            numberCount++;
+        }
+
+        cursorPosition++;
+    }
+
+    input.setSelectionRange(cursorPosition, cursorPosition);
+}
+
+
 function formatAmount(amount) {
-    const value = String(amount);
-    const parts = value.split('.', 2);
-    const integer = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    const fraction = parts.length > 1 && !/^0+$/.test(parts[1])
-        ? '.' + parts[1]
-        : '';
-    return integer + fraction;
+    let value = String(amount);
+
+    const isNegative = value.startsWith('-');
+
+    value = value.replace('-', '');
+
+    const parts = value.split('.');
+
+    let integerPart = parts[0];
+    const decimalPart = parts.length > 1 ? '.' + parts[1] : '';
+
+    integerPart = integerPart.replace(
+        /\B(?=(\d{3})+(?!\d))/g,
+        ','
+    );
+
+    return isNegative
+        ? '-' + integerPart + decimalPart
+        : integerPart + decimalPart;
 }
 
 
 function showMessage(message, type) {
+    const messageBox = document.getElementById('dashboardMessage');
 
-    const box =
-        document.getElementById('dashboardMessage');
+    messageBox.className = 'alert alert-' + type;
+    messageBox.innerText = message;
 
-    box.className =
-        'alert alert-' + type;
-
-    box.innerText =
-        message;
-
-    box.classList.remove('d-none');
-
+    messageBox.classList.remove('d-none');
 }

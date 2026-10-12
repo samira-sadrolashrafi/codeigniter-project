@@ -49,6 +49,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
+
 $route['default_controller'] = 'auth/login';
 
 $route['404_override'] = '';
@@ -76,3 +77,18 @@ $route['dashboard']['get'] = 'dashboard/index';
 $route['api/dashboard/balance']['get'] = 'dashboard_api/balance';
 
 $route['api/dashboard/balance']['post'] = 'dashboard_api/update_balance';
+
+
+// Category API
+
+$route['api/categories']['get'] = 'category_api/index';
+
+$route['api/categories/(:num)']['get'] = 'category_api/show';
+
+$route['api/categories/store']['post'] = 'category_api/store';
+
+$route['api/categories/update/(:num)']['post'] = 'category_api/update/$1';
+
+$route['api/categories/(:num)/delete']['post'] = 'category_api/delete/$1';
+
+$route['api/categories/(:num)/restore']['post'] = 'category_api/restore/$1';

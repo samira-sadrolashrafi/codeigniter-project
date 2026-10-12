@@ -12,7 +12,7 @@ class Balance_service
         $this->CI->load->model('User_model');
     }
 
-    // Return a normalized DECIMAL(15,2) string, or false. Never use floats for money.
+    // Return a normalized DECIMAL(15,2) string, or false. 
     public function normalize_amount($amount, $allow_negative = false)
     {
         if (!is_string($amount) && !is_int($amount)) {
@@ -104,19 +104,37 @@ class Balance_service
         return false;
     }
 
-    public function update_manual_balance($user_id, $new_balance)
+    public function update_manual_balance($user_id, $amount)
     {
-        $new_balance = $this->normalize_amount($new_balance, true);
-        if ($new_balance === false || (int) $user_id <= 0) {
+        $amount = $this->normalize_amount($amount, true);
+
+        if ($amount === false || (int) $user_id <= 0) {
             return false;
         }
 
         $db = $this->CI->db;
+
         $db->trans_begin();
-        if (!$this->CI->User_model->lock_active_by_id($user_id) || !$this->CI->Balance_model->find_by_user_id($user_id) || !$this->CI->Balance_model->update_balance($user_id, $new_balance) || $db->trans_status() === false) {
+
+        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
+
+        $balance = $this->CI->Balance_model->find_by_user_id($user_id);
+
+        if (!$balance) {
+            $db->trans_rollback();
+            return false;
+        }
+
+        $new_balance = number_format((float) $balance->balance + (float) $amount,2,'.','');
+
+        if (!$this->CI->Balance_model->update_balance($user_id, $new_balance) || $db->trans_status() === false) {
+            $db->trans_rollback();
+            return false;
+        }
+
         return $db->trans_commit();
     }
 }
