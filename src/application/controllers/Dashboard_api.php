@@ -83,6 +83,20 @@ class Dashboard_api extends CI_Controller
         );
     }
 
+    public function reset_balance()
+    {
+        if (!isLoggedIn()) {
+            return $this->respond(false, 'دسترسی غیرمجاز', 401);
+        }
+
+        $user_id = $this->session->userdata('user_id');
+        if (!$this->balance_service->reset_manual_balance($user_id)) {
+            return $this->respond(false, 'صفر کردن موجودی انجام نشد.', 422);
+        }
+
+        return $this->respond(true, 'موجودی با موفقیت صفر شد.');
+    }
+
     private function respond($success, $message, $status = 200, $data = array())
     {
         $response = array_merge(array('success'=>$success,'message'=>$message),$data);

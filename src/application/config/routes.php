@@ -74,21 +74,40 @@ $route['auth/logout']['post'] = 'auth_api/logout';
 // Dashboard
 $route['dashboard']['get'] = 'dashboard/index';
 
+$route['categories']['get'] = 'categories/index';
+
+$route['transactions']['get'] = 'transactions/index';
+
 $route['api/dashboard/balance']['get'] = 'dashboard_api/balance';
 
 $route['api/dashboard/balance']['post'] = 'dashboard_api/update_balance';
 
+$route['api/dashboard/balance/reset']['post'] = 'dashboard_api/reset_balance';
+
 
 // Category API
-
+$route['api/categories/deleted']['get'] = 'category_api/deleted';
 $route['api/categories']['get'] = 'category_api/index';
 
 $route['api/categories/(:num)']['get'] = 'category_api/show';
 
 $route['api/categories/store']['post'] = 'category_api/store';
 
-$route['api/categories/update/(:num)']['post'] = 'category_api/update/$1';
+$route['api/categories/(:num)/update']['post'] = 'category_api/update/$1';
 
 $route['api/categories/(:num)/delete']['post'] = 'category_api/delete/$1';
 
 $route['api/categories/(:num)/restore']['post'] = 'category_api/restore/$1';
+
+
+// Transaction API
+$route['api/transactions/deleted']['get'] = 'transaction_api/deleted';
+$route['api/transactions']['get'] = 'transaction_api/index';
+
+$route['api/transactions']['post'] = 'transaction_api/store';
+
+$route['api/transactions/(:num)/update']['post'] = 'transaction_api/update/$1';
+
+$route['api/transactions/(:num)/delete']['post'] = 'transaction_api/delete/$1';
+
+$route['api/transactions/(:num)/restore']['post'] = 'transaction_api/restore/$1';

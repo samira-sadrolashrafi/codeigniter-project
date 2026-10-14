@@ -61,7 +61,7 @@ class Transaction_service
             $db->trans_rollback();
             return false;
         }
-        $category = $this->CI->Category_model->find_owned_for_update($user_id, $values['category_id']);
+        $category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $values['category_id']);
         if (!$category || $category->deleted_at !== null) {
             $db->trans_rollback();
             return false;
@@ -83,7 +83,7 @@ class Transaction_service
             return false;
         }
 
-        $transaction = $this->CI->Transaction_model->find_owned_by_id($user_id, $transaction_id);
+        $transaction = $this->CI->Transaction_model->find_transaction_by_id($user_id, $transaction_id);
         return ($transaction && $transaction->deleted_at === null) ? $transaction : false;
     }
 
@@ -93,7 +93,16 @@ class Transaction_service
             return false;
         }
 
-        return $this->CI->Transaction_model->find_active_by_user_id($user_id);
+        return $this->CI->Transaction_model->find_active_transactions_by_user_id($user_id);
+    }
+
+    public function get_deleted($user_id)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        return $this->CI->Transaction_model->find_deleted_transactions_by_user_id($user_id);
     }
 
     public function update($user_id, $transaction_id, $data)
@@ -108,19 +117,19 @@ class Transaction_service
             $db->trans_rollback();
             return false;
         }
-        $old = $this->CI->Transaction_model->find_owned_for_update($user_id, $transaction_id);
+        $old = $this->CI->Transaction_model->find_transaction_by_id_with_lock($user_id, $transaction_id);
         if (!$old || $old->deleted_at !== null) {
             $db->trans_rollback();
             return false;
         }
-        $old_category = $this->CI->Category_model->find_owned_for_update($user_id, $old->category_id);
-        $new_category = $this->CI->Category_model->find_owned_for_update($user_id, $values['category_id']);
+        $old_category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $old->category_id);
+        $new_category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $values['category_id']);
         if (!$old_category || !$new_category || $new_category->deleted_at !== null) {
             $db->trans_rollback();
             return false;
         }
         $values['updated_at'] = date('Y-m-d H:i:s');
-        if (!$this->balance_service->reverse_transaction_effect($user_id, $old_category->type, $old->amount) || !$this->CI->Transaction_model->update_owned_active($user_id, $transaction_id, $values) || !$this->balance_service->apply_transaction_effect($user_id, $new_category->type, $values['amount']) || $db->trans_status() === false) {
+        if (!$this->balance_service->reverse_transaction_effect($user_id, $old_category->type, $old->amount) || !$this->CI->Transaction_model->update_active_transaction_by_user($user_id, $transaction_id, $values) || !$this->balance_service->apply_transaction_effect($user_id, $new_category->type, $values['amount']) || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }
@@ -135,19 +144,19 @@ class Transaction_service
             $db->trans_rollback();
             return false;
         }
-        $transaction = $this->CI->Transaction_model->find_owned_for_update($user_id, $transaction_id);
+        $transaction = $this->CI->Transaction_model->find_transaction_by_id_with_lock($user_id, $transaction_id);
         if (!$transaction || $transaction->deleted_at !== null) {
             $db->trans_rollback();
             return false;
         }
-        $category = $this->CI->Category_model->find_owned_for_update($user_id, $transaction->category_id);
+        $category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $transaction->category_id);
         if (!$category) {
             $db->trans_rollback();
             return false;
         }
         $now = date('Y-m-d H:i:s');
         $until = date('Y-m-d H:i:s', time() + $this->restore_days * 86400);
-        if (!$this->CI->Transaction_model->soft_delete_owned($user_id, $transaction_id, $now, $until) || !$this->balance_service->reverse_transaction_effect($user_id, $category->type, $transaction->amount) || $db->trans_status() === false) {
+        if (!$this->CI->Transaction_model->soft_delete_transaction_by_user($user_id, $transaction_id, $now, $until) || !$this->balance_service->reverse_transaction_effect($user_id, $category->type, $transaction->amount) || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }
@@ -162,18 +171,18 @@ class Transaction_service
             $db->trans_rollback();
             return false;
         }
-        $transaction = $this->CI->Transaction_model->find_owned_for_update($user_id, $transaction_id);
+        $transaction = $this->CI->Transaction_model->find_transaction_by_id_with_lock($user_id, $transaction_id);
         if (!$transaction || !$transaction->deleted_at || !$transaction->restore_until || strtotime($transaction->restore_until) <= time()) {
             $db->trans_rollback();
             return false;
         }
 
-        $category = $this->CI->Category_model->find_owned_for_update($user_id, $transaction->category_id);
+        $category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $transaction->category_id);
         if (!$category || $category->deleted_at !== null) {
             $db->trans_rollback();
             return false;
         }
-        if (!$this->CI->Transaction_model->restore_owned($user_id, $transaction_id) || !$this->balance_service->apply_transaction_effect($user_id, $category->type, $transaction->amount) || $db->trans_status() === false) {
+        if (!$this->CI->Transaction_model->restore_transaction_by_user($user_id, $transaction_id) || !$this->balance_service->apply_transaction_effect($user_id, $category->type, $transaction->amount) || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }

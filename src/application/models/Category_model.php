@@ -13,7 +13,7 @@ class Category_model extends CI_Model
         return (int) $this->db->insert_id();
     }
 
-    public function find_owned_for_update($user_id, $category_id)
+    public function find_category_by_id_with_lock($user_id, $category_id)
     {
         $query = $this->db->query(
             'SELECT * FROM categories WHERE id = ? AND user_id = ? FOR UPDATE',
@@ -22,14 +22,14 @@ class Category_model extends CI_Model
         return $query ? $query->row() : false;
     }
 
-    public function find_owned_by_id($user_id, $category_id)
+    public function find_category_by_id($user_id, $category_id)
     {
         return $this->db->where('id', $category_id)
             ->where('user_id', $user_id)
             ->get($this->table)->row();
     }
 
-    public function find_all_by_name($user_id, $name)
+    public function find_categories_by_name($user_id, $name)
     {
         return $this->db
             ->where('user_id', $user_id)
@@ -37,14 +37,21 @@ class Category_model extends CI_Model
             ->get($this->table)->result();
     }
 
-    public function find_active_by_user_id($user_id)
+    public function find_active_categories_by_user_id($user_id)
     {
         return $this->db->where('user_id', $user_id)
             ->where('deleted_at', null)
             ->order_by('id', 'DESC')->get($this->table)->result();
     }
 
-    public function update_owned_active($user_id, $category_id, $data)
+    public function find_deleted_categories_by_user_id($user_id)
+    {
+        return $this->db->where('user_id', $user_id)
+            ->where('deleted_at IS NOT NULL', null, false)
+            ->order_by('deleted_at', 'DESC')->get($this->table)->result();
+    }
+
+    public function update_active_category_by_user($user_id, $category_id, $data)
     {
         return $this->db->where('id', $category_id)
             ->where('user_id', $user_id)
@@ -52,7 +59,7 @@ class Category_model extends CI_Model
             ->update($this->table, $data);
     }
 
-    public function soft_delete_owned($user_id, $category_id, $now, $until)
+    public function soft_delete_category_by_user($user_id, $category_id, $now, $until)
     {
         $querysuccess = $this->db->where('id', $category_id)
             ->where('user_id', $user_id)
@@ -65,7 +72,7 @@ class Category_model extends CI_Model
         return $querysuccess && $this->db->affected_rows() === 1;
     }
 
-    public function restore_owned($user_id, $category_id)
+    public function restore_category_by_user($user_id, $category_id)
     {
         $querysuccess = $this->db->where('id', $category_id)
             ->where('user_id', $user_id)

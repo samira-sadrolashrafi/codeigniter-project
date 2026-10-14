@@ -1,0 +1,94 @@
+.dashboard-shell {
+    min-height: 100vh;
+    max-width: 1680px;
+    margin-inline: auto;
+}
+
+.dashboard-sidebar-wrap {
+    border-left: 1px solid #e9ecef;
+    padding: 1.25rem 0.75rem 1.25rem 1.25rem;
+}
+
+.dashboard-sidebar {
+    position: sticky;
+    top: 1rem;
+    min-height: calc(100vh - 2rem);
+    padding: 1.25rem 1rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 1rem;
+}
+
+.dashboard-brand {
+    color: #212529;
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.dashboard-sidebar .nav-link,
+.dashboard-mobile-nav .nav-link,
+.offcanvas .nav-link {
+    color: #495057;
+    border-radius: 0.65rem;
+    padding: 0.7rem 0.85rem;
+    text-align: right;
+}
+
+.dashboard-sidebar .nav-link.active,
+.dashboard-mobile-nav .nav-link.active {
+    color: #fff;
+    background-color: #344767;
+}
+
+.dashboard-main {
+    padding: 0 1rem 2rem;
+}
+
+.dashboard-header {
+    min-height: 76px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.dashboard-card {
+    border: 1px solid #e9ecef;
+    border-radius: 1rem;
+    box-shadow: 0 0.25rem 0.9rem rgba(33, 37, 41, 0.035);
+}
+
+.dashboard-main section.card {
+    border: 1px solid #e9ecef !important;
+    border-radius: 1rem;
+    box-shadow: 0 0.25rem 0.9rem rgba(33, 37, 41, 0.035) !important;
+}
+
+.dashboard-main .btn-group .btn {
+    border-radius: 0.55rem;
+}
+
+.dashboard-money {
+    font-size: clamp(1.65rem, 3vw, 2.25rem);
+    font-weight: 600;
+    direction: ltr;
+    text-align: right;
+}
+
+.dashboard-main .table > :not(caption) > * > * {
+    padding: 0.85rem 1rem;
+}
+
+.dashboard-main .table thead th {
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+@media (max-width: 991.98px) {
+    .dashboard-main {
+        padding: 0 0.25rem 1.5rem;
+    }
+
+    .dashboard-header {
+        min-height: 68px;
+    }
+}

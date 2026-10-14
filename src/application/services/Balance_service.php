@@ -21,20 +21,27 @@ class Balance_service
 
         $value = trim((string) $amount);
         $pattern = $allow_negative
-            ? '/^-?(?:0|[1-9][0-9]{0,12})(?:\.[0-9]{1,2})?$/'
-            : '/^(?:0|[1-9][0-9]{0,12})(?:\.[0-9]{1,2})?$/';
+            ? '/^-?[0-9]+(?:\.[0-9]{1,2})?$/'
+            : '/^[0-9]+(?:\.[0-9]{1,2})?$/';
 
         if (!preg_match($pattern, $value)) {
-            return false;
-        }
-        if (!$allow_negative && !preg_match('/[1-9]/', $value)) {
             return false;
         }
 
         $negative = ($value[0] === '-');
         $unsigned = $negative ? substr($value, 1) : $value;
         $parts = explode('.', $unsigned, 2);
-        $result = $parts[0] . '.' . str_pad($parts[1] ?? '', 2, '0');
+        $integer = ltrim($parts[0], '0');
+        $integer = $integer === '' ? '0' : $integer;
+        if (strlen($integer) > 13) {
+            return false;
+        }
+
+        $fraction = $parts[1] ?? '';
+        $result = $integer . '.' . str_pad($fraction, 2, '0');
+        if (!$allow_negative && !preg_match('/[1-9]/', $result)) {
+            return false;
+        }
         if ($negative && preg_match('/[1-9]/', $unsigned)) {
             return '-' . $result;
         }
@@ -131,6 +138,26 @@ class Balance_service
         $new_balance = number_format((float) $balance->balance + (float) $amount,2,'.','');
 
         if (!$this->CI->Balance_model->update_balance($user_id, $new_balance) || $db->trans_status() === false) {
+            $db->trans_rollback();
+            return false;
+        }
+
+        return $db->trans_commit();
+    }
+
+    public function reset_manual_balance($user_id)
+    {
+        if ((int) $user_id <= 0) {
+            return false;
+        }
+
+        $db = $this->CI->db;
+        $db->trans_begin();
+
+        if (!$this->CI->User_model->lock_active_by_id($user_id) ||
+            !$this->CI->Balance_model->find_by_user_id($user_id) ||
+            !$this->CI->Balance_model->update_balance($user_id, '0.00') ||
+            $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }

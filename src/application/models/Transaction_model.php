@@ -1,85 +1,132 @@
 <?php
+
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 class Transaction_model extends CI_Model
 {
     private $table = 'transactions';
 
+
     public function create($data)
     {
         if (!$this->db->insert($this->table, $data)) {
             return false;
         }
+
         return (int) $this->db->insert_id();
     }
 
-    public function find_owned_for_update($user_id, $transaction_id)
+
+    public function find_transaction_by_id_with_lock($user_id, $transaction_id)
     {
         $query = $this->db->query(
-            'SELECT * FROM transactions WHERE id = ? AND user_id = ? FOR UPDATE',
-            array($transaction_id, $user_id)
+            'SELECT *
+             FROM transactions
+             WHERE id = ?
+             AND user_id = ?
+             FOR UPDATE',
+            array(
+                $transaction_id,
+                $user_id
+            )
         );
+
         return $query ? $query->row() : false;
     }
 
-    public function find_owned_by_id($user_id, $transaction_id)
+
+    public function find_transaction_by_id($user_id, $transaction_id)
     {
-        return $this->db->where('id', $transaction_id)
+        return $this->db
+            ->where('id', $transaction_id)
             ->where('user_id', $user_id)
-            ->get($this->table)->row();
+            ->get($this->table)
+            ->row();
     }
 
-    public function find_active_by_category_for_update($user_id, $category_id)
+
+    public function find_active_transactions_by_category_with_lock($user_id, $category_id)
     {
         $query = $this->db->query(
-            'SELECT * FROM transactions
-             WHERE user_id = ? AND category_id = ? AND deleted_at IS NULL
+            'SELECT *
+             FROM transactions
+             WHERE user_id = ?
+             AND category_id = ?
+             AND deleted_at IS NULL
              FOR UPDATE',
-            array($user_id, $category_id)
+            array(
+                $user_id,
+                $category_id
+            )
         );
+
         return $query ? $query->result() : false;
     }
 
-    // Includes deleted transactions: the category's type may not change historically.
-    public function has_any_by_category($user_id, $category_id)
+
+    // بررسی وجود Transaction حتی اگر Soft Delete شده باشد
+    // چون type یک Category نباید با تاریخچه Transactionها تضاد داشته باشد.
+    public function has_transactions_by_category($user_id, $category_id)
     {
-        return $this->db->where('user_id', $user_id)
+        return $this->db
+            ->where('user_id', $user_id)
             ->where('category_id', $category_id)
             ->count_all_results($this->table) > 0;
     }
 
-    public function find_active_by_user_id($user_id)
+
+    public function find_active_transactions_by_user_id($user_id)
     {
-        return $this->db->where('user_id', $user_id)
+        return $this->db
+            ->where('user_id', $user_id)
             ->where('deleted_at', null)
             ->order_by('transaction_date', 'DESC')
-            ->get($this->table)->result();
+            ->get($this->table)
+            ->result();
     }
 
-    public function update_owned_active($user_id, $transaction_id, $data)
+    public function find_deleted_transactions_by_user_id($user_id)
     {
-        return $this->db->where('id', $transaction_id)
+        return $this->db->select('transactions.*, categories.name AS category_name, categories.deleted_at AS category_deleted_at')
+            ->from($this->table)
+            ->join('categories', 'categories.id = transactions.category_id', 'left')
+            ->where('transactions.user_id', $user_id)
+            ->where('transactions.deleted_at IS NOT NULL', null, false)
+            ->order_by('transactions.deleted_at', 'DESC')
+            ->get()->result();
+    }
+
+
+    public function update_active_transaction_by_user($user_id, $transaction_id, $data)
+    {
+        return $this->db
+            ->where('id', $transaction_id)
             ->where('user_id', $user_id)
             ->where('deleted_at', null)
             ->update($this->table, $data);
     }
 
-    public function soft_delete_owned($user_id, $transaction_id, $now, $until)
+
+    public function soft_delete_transaction_by_user($user_id, $transaction_id, $deleted_at, $restore_until)
     {
-        $querysuccess = $this->db->where('id', $transaction_id)
+        $is_updated = $this->db
+            ->where('id', $transaction_id)
             ->where('user_id', $user_id)
             ->where('deleted_at', null)
             ->update($this->table, array(
-                'deleted_at' => $now,
-                'restore_until' => $until,
-                'updated_at' => $now
+                'deleted_at' => $deleted_at,
+                'restore_until' => $restore_until,
+                'updated_at' => $deleted_at
             ));
-        return $querysuccess && $this->db->affected_rows() === 1;
+
+        return $is_updated && $this->db->affected_rows() === 1;
     }
 
-    public function restore_owned($user_id, $transaction_id)
+
+    public function restore_transaction_by_user($user_id, $transaction_id)
     {
-        $querysuccess = $this->db->where('id', $transaction_id)
+        $is_updated = $this->db
+            ->where('id', $transaction_id)
             ->where('user_id', $user_id)
             ->where('deleted_at IS NOT NULL', null, false)
             ->update($this->table, array(
@@ -87,6 +134,7 @@ class Transaction_model extends CI_Model
                 'restore_until' => null,
                 'updated_at' => date('Y-m-d H:i:s')
             ));
-        return $querysuccess && $this->db->affected_rows() === 1;
+
+        return $is_updated && $this->db->affected_rows() === 1;
     }
 }

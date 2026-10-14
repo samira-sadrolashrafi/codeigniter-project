@@ -6,10 +6,9 @@ class Dashboard extends CI_Controller
     public function __construct()
     {
         parent::__construct();
-
+        $this->load->library('session');
         $this->load->helper('session');
     }
-
 
     public function index()
     {
@@ -18,12 +17,8 @@ class Dashboard extends CI_Controller
             return;
         }
 
-
-        $data = array(
+        $this->load->view('dashboard/index', array(
             'username' => $this->session->userdata('username')
-        );
-
-
-        $this->load->view('dashboard/index', $data);
+        ));
     }
 }
