@@ -27,6 +27,9 @@ class Auth extends CI_Controller
             return;
         }
 
-        $this->load->view('auth/register');
+        $this->load->config('recovery_questions');
+        $this->load->view('auth/register', array(
+            'questions' => $this->config->item('recovery_questions')
+        ));
     }
 }

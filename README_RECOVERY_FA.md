@@ -1,0 +1,113 @@
+# افزونه بازیابی رمز با سؤال امنیتی برای CodeIgniter 3
+
+این بسته روی سورس `samira-sadrolashrafi/codeigniter-project` (نسخه ZIP ارسال‌شده) ساخته شده است.
+
+> **هشدار امنیتی:** این پیاده‌سازی صرفاً برای دموی آموزشی با خواسته منتور است. **یک سؤال امنیتی به‌تنهایی روش قابل‌قبولی برای بازنشانی رمز در محیط عملیاتی نیست**؛ پاسخ‌ها ممکن است قابل حدس یا بازیابی از شبکه‌های اجتماعی باشند. پیش از انتشار واقعی، احراز مالکیت ایمیل با لینک/توکن کوتاه‌عمر یک‌بارمصرف یا یک عامل بازیابی معتبر اضافه کنید. CSRF پروژه اصلی نیز غیرفعال است و باید در انتشار عملیاتی اصلاح شود.
+
+## محتویات
+
+- فرم ثبت‌نام: انتخاب **یکی از ۵ سؤال** + یک پاسخ محرمانه (حداقل ۶ و حداکثر ۲۵۶ بایت).
+- هش پاسخ با `password_hash()` در جدول `user_recovery` ذخیره می‌شود؛ متن اصلی ذخیره نمی‌شود.
+- Modal فراموشی رمز در صفحه ورود، **بدون صفحه جدید**:
+  1. نام کاربری → نمایش سؤال (برای حساب ناموجود، سؤال پیش‌فرض نمایش داده می‌شود تا وجود حساب مستقیماً اعلام نشود).
+  2. تأیید پاسخ با `password_verify()` و Rate Limiting: ۵ تلاش برای هر حساب و ۲۵ تلاش از یک IP در پنجره ۱۵ دقیقه‌ای.
+  3. مجوز بازیابی Session با اعتبار ۵ دقیقه و Nonce یک‌بارمصرف → تعیین رمز جدید و تکرار آن → تأیید.
+  4. ورود دستی با رمز جدید؛ پاسخ امنیتی به‌تنهایی باعث ورود مستقیم نمی‌شود.
+- پس از تغییر رمز، Remember-Me Token کاربر باطل می‌شود. **نشست‌های باز دیگر به‌طور خودکار باطل نمی‌شوند**؛ برای محیط عملیاتی باید سازوکار ابطال نشست نیز اضافه شود.
+- برای **کاربران قدیمی** که قبلاً ثبت‌نام کرده‌اند، دکمه «سؤال بازیابی» در هدر داشبورد، دسته‌بندی‌ها و تراکنش‌ها اضافه شده است. تغییر یا انتخاب سؤال نیازمند ورود رمز فعلی کاربر است.
+- مسیرهای API:
+  - `POST /auth/recovery/question`
+  - `POST /auth/recovery/verify`
+  - `POST /auth/recovery/reset`
+  - `POST /auth/recovery/enroll` (نیازمند ورود و رمز فعلی)
+- بسته شامل **Login Rate Limiting قبلی** نیز هست تا نسخه‌های Migration هماهنگ بمانند (`006` و `007`).
+
+## نصب
+
+### گزینه ۱: بسته کامل
+
+فایل `codeigniter_project_recovery_full.zip` را Extract کرده و به‌عنوان نسخه جدید سورس استفاده کنید. از دیتابیس و تغییرات محلی فعلی Backup بگیرید.
+
+### گزینه ۲: پچ فایل‌ها
+
+فایل `codeigniter_account_recovery_patch.zip` را در **ریشه ریپو** Extract کنید تا پوشه `src/` روی سورس موجود ادغام شود. اگر از قبل پچ Rate Limiting قبلی را نصب کرده‌اید، نسخه پچ جدید همان قابلیت را نگه می‌دارد. پیش از جایگزینی فایل‌های تغییر یافته، تغییرات محلی را با Diff بررسی کنید.
+
+### اجرای Migration
+
+در پوشه حاوی `compose.yml`:
+
+```bash
+# اگر شبکه خارجی تعریف‌شده در Compose از قبل وجود ندارد:
+docker network create codeigniter_dev_environment_network
+
+docker compose up -d --build
+docker compose exec codeigniter-dev-environment php index.php migrate
+```
+
+باید `Migration completed successfully.` نمایش داده شود و Migration 6 و 7 اعمال شوند. **Migration نسخه ۷ وابسته به نسخه ۶ است.** بدون Migration فرم ثبت‌نام جدید کار نمی‌کند.
+
+## تست پیشنهادی در مرورگر
+
+1. `http://localhost:8000/register` را باز کنید. یک نام کاربری جدید بسازید؛ یکی از ۵ سؤال و یک جواب حداقل ۶ بایتی انتخاب کنید.
+2. در `http://localhost:8000/login` روی «رمز عبور را فراموش کرده‌اید؟» کلیک کنید؛ Modal نمایش داده می‌شود.
+3. نام کاربری ساخته‌شده را وارد کنید؛ **سؤال انتخاب‌شده** نمایش داده می‌شود.
+4. یک جواب غلط وارد کنید؛ باید خطا دریافت کنید. با جواب صحیح مرحله تنظیم رمز جدید نمایش داده می‌شود.
+5. رمز مطابق الگوی اعتبارسنجی قبلی پروژه (۸ کاراکتر، حروف بزرگ/کوچک انگلیسی، عدد و کاراکتر خاص) ثبت کنید. باید پیام موفقیت بگیرید.
+6. Modal را ببندید و با **رمز جدید** وارد شوید؛ رمز قبلی نباید کار کند.
+7. با یک حساب قدیمی وارد شوید و از دکمه «سؤال بازیابی» پاسخ را تنظیم کنید. برای ذخیره رمز فعلی لازم است.
+8. روی حساب تست با ۶ تلاش بازیابی، وضعیت `429` را ببینید؛ بعد از ۱۵ دقیقه دوباره آزمون کنید.
+
+## تست API از Postman
+
+> **الزامی:** مرحله‌های بازیابی باید در یک مرورگر یا کلاینت با **کوکی Session ثابت** انجام شوند. Postman Cookie Jar را فعال کنید. اگر در درخواست اول نام کاربری متفاوت ارسال کردید، فرایند را از ابتدا شروع کنید.
+
+```text
+POST /auth/recovery/question
+x-www-form-urlencoded: username=<USERNAME>
+
+POST /auth/recovery/verify
+x-www-form-urlencoded: answer=<THE_ANSWER>
+
+POST /auth/recovery/reset
+x-www-form-urlencoded: nonce=<NONCE_FROM_VERIFY>, password=<NEW_PASSWORD>, password_confirm=<NEW_PASSWORD>
+```
+
+در صورت موفقیت مرحله دوم، فقط `nonce` به همان کلاینت برگردانده می‌شود و **Session محدود بازیابی** در سرور ذخیره می‌شود. Nonce و Session باید هر دو معتبر باشند.
+
+## فایل‌های تغییر‌یافته و جدید
+
+- `src/application/controllers/Auth.php` (انتقال سؤال‌ها به صفحه ثبت‌نام)
+- `src/application/controllers/Auth_api.php` (ثبت‌نام و حفظ Rate Limiting ورود)
+- `src/application/controllers/Recovery_api.php` (جدید)
+- `src/application/services/Auth_service.php` (درج اتمیک سؤال و پاسخ همراه ثبت‌نام)
+- `src/application/models/Recovery_model.php` (جدید)
+- `src/application/models/Recovery_throttle_model.php` (جدید)
+- `src/application/models/Login_throttle_model.php` (پچ قبل)
+- `src/application/config/recovery_questions.php` (جدید)
+- `src/application/config/routes.php` (چهار Route جدید)
+- `src/application/config/migration.php` (نسخه ۷)
+- `src/application/migrations/006_create_login_throttles.php` (پچ قبل)
+- `src/application/migrations/007_create_account_recovery.php` (جدید)
+- `src/application/views/auth/register.php`
+- `src/application/views/auth/login.php`
+- `src/application/views/auth/recovery_modal.php` (جدید)
+- `src/application/views/layouts/app_header.php`
+- `src/application/views/layouts/recovery_enroll_modal.php` (جدید)
+- `src/assets/js/auth.js`
+- `src/assets/js/recovery.js` (جدید)
+
+## تست‌های انجام شده / انجام نشده
+
+- بررسی نحوی `php -l` روی همه فایل‌های PHP برنامه: موفق.
+- بررسی نحوی `node --check` برای فایل‌های JavaScript: موفق.
+- تطبیق ساختار فرم‌ها، APIها و Migrationها: ایستا (Static) انجام شده.
+- **تست واقعی HTTP و دیتابیس MariaDB**: در محیط حاضر انجام نشده؛ Docker/DB در دسترس نبود. قبل از Merge، راه‌اندازی و آزمون عملی لازم است.
+
+## ملاحظات امنیتی برای نسخه عملیاتی
+
+- بهترین روش بازیابی: ایمیل تأییدشده + لینک تصادفی کوتاه‌عمر یک‌بارمصرف + محدودسازی درخواست.
+- فعال‌سازی CSRF برای تمامی فرم‌ها و Fetchهای برنامه؛ پروژه اولیه `csrf_protection = FALSE` دارد.
+- جلوگیری از User Enumeration زمانی: پاسخ سؤال از نظر زمان و توزیع واقعی اطلاعات هنوز کاملاً یکنواخت نیست.
+- مکانیزم invalidate-all-sessions پس از تغییر رمز.
+- فعال‌سازی HTTPS و Cookieهای Secure در محیط عملیاتی.
+- کنترل دقیق Abuse/DoS ناشی از قفل شدن شمارنده هر حساب.

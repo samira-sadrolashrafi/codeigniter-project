@@ -12,7 +12,7 @@ class Auth_service
     {
         $this->CI =& get_instance();
 
-        $this->CI->load->model('User_model');
+        $this->CI->load->model(array('User_model', 'Recovery_model'));
         $this->CI->load->helper('session');
         $this->CI->load->helper('validation');
 
@@ -27,6 +27,8 @@ class Auth_service
         $db->trans_begin();
 
         $user_id = $this->CI->User_model->create(array(
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
             'username' => $data['username'],
             'email' => $data['email'],
             'password' => password_hash(
@@ -36,7 +38,9 @@ class Auth_service
             'created_at' => date('Y-m-d H:i:s')
         ));
 
-        if (!$user_id || !$this->balance_service->create_initial_balance($user_id) || $db->trans_status() === false) {
+        if (!$user_id || !$this->balance_service->create_initial_balance($user_id)
+            || !$this->CI->Recovery_model->save_for_user($user_id, $data['question_id'], $data['security_answer'])
+            || $db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }

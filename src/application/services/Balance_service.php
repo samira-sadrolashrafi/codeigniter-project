@@ -135,9 +135,14 @@ class Balance_service
             return false;
         }
 
-        $new_balance = number_format((float) $balance->balance + (float) $amount,2,'.','');
+        // Keep the manual adjustment as an exact signed DECIMAL change in SQL.
+        // A zero adjustment is a valid no-op, not a failed UPDATE.
+        if ($amount !== '0.00' && !$this->CI->Balance_model->change_by($user_id, $amount)) {
+            $db->trans_rollback();
+            return false;
+        }
 
-        if (!$this->CI->Balance_model->update_balance($user_id, $new_balance) || $db->trans_status() === false) {
+        if ($db->trans_status() === false) {
             $db->trans_rollback();
             return false;
         }

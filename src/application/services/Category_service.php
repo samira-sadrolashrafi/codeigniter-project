@@ -108,13 +108,15 @@ class Category_service
 
         if (array_key_exists('name', $data)) {
 
-            $new_name = trim($data['name']);
-
-            if (!$this->valid_name($new_name)) {
+            // Validate the raw input before trim() to avoid a TypeError
+            // when the API receives an array or another non-string value.
+            if (!$this->valid_name($data['name'])) {
 
                 $db->trans_rollback();
                 return false;
             }
+
+            $new_name = trim($data['name']);
 
             if ($this->check_duplicate_name($user_id, $new_name, $category_id)) {
                 $db->trans_rollback();

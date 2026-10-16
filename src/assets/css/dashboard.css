@@ -1,94 +1,292 @@
+/*
+ * TARAZINO | Bootstrap-first UI skin
+ * Target: CodeIgniter 3, Bootstrap 5.3.3 RTL, Font Awesome, Chart.js
+ * Future: same class names can be reused in Vue 3 single-file components.
+ *
+ * PRINCIPLE: Bootstrap controls layout, spacing, forms, modals and pagination.
+ * This file only supplies brand-specific styling and a few fixed dimensions.
+ *
+ * Preferred Bootstrap classes in the views:
+ * - App layout:        container-fluid > row g-0 > col-lg-3 col-xl-2 + col-lg-9 col-xl-10
+ * - Equal KPI cards:   row row-cols-1 row-cols-sm-2 row-cols-xl-4 g-3
+ *                      > col > card h-100 tz-kpi
+ * - Charts:            row g-3 > col-lg-8 + col-lg-4
+ * - Profile:           d-flex flex-column gap-3 (account card ABOVE password card)
+ * - Tools/filters:     d-flex flex-wrap align-items-center gap-2
+ * - Tables:            table-responsive > table table-hover align-middle
+ * - Pagination:        nav > ul.pagination > li.page-item > a.page-link
+ * - Modals:            Bootstrap modal / modal-dialog-centered / modal-content
+ * - Category icons:    Font Awesome icon plus a fixed Bootstrap bg-*-subtle utility
+ *
+ * IMPORTANT: Color/icon defaults are a display mapping in JS/Vue, NOT user data.
+ * No category icon/color columns or database migration are required.
+ */
+
+:root {
+    --tz-sidebar-bg: #0f213a;
+    --tz-sidebar-bg-end: #172f50;
+    --tz-sidebar-text: #ccd8ea;
+    --tz-sidebar-active: #2a4e7d;
+    --tz-page-bg: #f5f7fb;
+    --tz-radius: 1rem;
+    --tz-card-shadow: 0 0.35rem 1.5rem rgba(24, 45, 75, 0.045);
+    --tz-chart-height: 300px;
+}
+
+/* Bootstrap 5.3 dark-mode support; set data-bs-theme on the HTML element. */
+[data-bs-theme="dark"] {
+    --tz-page-bg: #101827;
+    --tz-card-shadow: 0 0.4rem 1.6rem rgba(0, 0, 0, 0.16);
+}
+
+/* 1) Application canvas and legacy CodeIgniter view compatibility. */
 .dashboard-shell {
     min-height: 100vh;
-    max-width: 1680px;
+    max-width: none;
     margin-inline: auto;
-}
-
-.dashboard-sidebar-wrap {
-    border-left: 1px solid #e9ecef;
-    padding: 1.25rem 0.75rem 1.25rem 1.25rem;
-}
-
-.dashboard-sidebar {
-    position: sticky;
-    top: 1rem;
-    min-height: calc(100vh - 2rem);
-    padding: 1.25rem 1rem;
-    background: #fff;
-    border: 1px solid #e9ecef;
-    border-radius: 1rem;
-}
-
-.dashboard-brand {
-    color: #212529;
-    font-size: 1.05rem;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-.dashboard-sidebar .nav-link,
-.dashboard-mobile-nav .nav-link,
-.offcanvas .nav-link {
-    color: #495057;
-    border-radius: 0.65rem;
-    padding: 0.7rem 0.85rem;
-    text-align: right;
-}
-
-.dashboard-sidebar .nav-link.active,
-.dashboard-mobile-nav .nav-link.active {
-    color: #fff;
-    background-color: #344767;
+    background-color: var(--tz-page-bg);
 }
 
 .dashboard-main {
-    padding: 0 1rem 2rem;
+    min-width: 0;
+    padding-bottom: 2rem;
 }
 
 .dashboard-header {
     min-height: 76px;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--bs-border-color);
 }
 
-.dashboard-card {
-    border: 1px solid #e9ecef;
-    border-radius: 1rem;
-    box-shadow: 0 0.25rem 0.9rem rgba(33, 37, 41, 0.035);
+/* 2) Desktop-first right sidebar; Bootstrap grid owns its width. */
+.dashboard-sidebar-wrap {
+    background: var(--tz-sidebar-bg);
 }
 
-.dashboard-main section.card {
-    border: 1px solid #e9ecef !important;
-    border-radius: 1rem;
-    box-shadow: 0 0.25rem 0.9rem rgba(33, 37, 41, 0.035) !important;
+.dashboard-sidebar {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.75rem 0.8rem 1.25rem;
+    background: linear-gradient(165deg, var(--tz-sidebar-bg-end), var(--tz-sidebar-bg));
+    color: #fff;
 }
 
-.dashboard-main .btn-group .btn {
-    border-radius: 0.55rem;
+.dashboard-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0.2rem 0.75rem 1.75rem;
+    color: #fff;
+    font-size: 1.35rem;
+    font-weight: 700;
+    text-decoration: none;
 }
 
-.dashboard-money {
-    font-size: clamp(1.65rem, 3vw, 2.25rem);
-    font-weight: 600;
-    direction: ltr;
+.dashboard-brand:hover,
+.dashboard-brand:focus-visible {
+    color: #fff;
+}
+
+/* Logo file is a separate asset; CSS never attempts to draw it. */
+.tz-brand-logo {
+    width: 2.4rem;
+    height: 2.4rem;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.dashboard-sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 44px;
+    padding: 0.7rem 0.85rem;
+    color: var(--tz-sidebar-text);
+    border-radius: 0.7rem;
+    text-decoration: none;
+}
+
+.dashboard-sidebar .nav-link:hover,
+.dashboard-sidebar .nav-link:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+
+.dashboard-sidebar .nav-link.active {
+    background: var(--tz-sidebar-active);
+    color: #fff;
+}
+
+/* Reserve identical width for every Font Awesome icon. */
+.dashboard-sidebar .nav-link .fa-solid,
+.dashboard-sidebar .nav-link .fa-regular,
+.dashboard-mobile-nav .nav-link .fa-solid,
+.dashboard-mobile-nav .nav-link .fa-regular {
+    width: 1.25rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.tz-sidebar-spacer {
+    margin-top: auto;
+}
+
+/* Mobile offcanvas navigation stays Bootstrap-native. */
+.dashboard-mobile-nav .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: var(--bs-body-color);
     text-align: right;
 }
 
-.dashboard-main .table > :not(caption) > * > * {
-    padding: 0.85rem 1rem;
+.dashboard-mobile-nav .nav-link.active {
+    color: #fff;
+    background-color: var(--bs-primary);
 }
 
+/* 3) Surface finishing: use Bootstrap .card, .shadow-sm, .rounded-* first. */
+.dashboard-card,
+.tz-panel {
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--tz-radius);
+    box-shadow: var(--tz-card-shadow);
+    background-color: var(--bs-body-bg);
+}
+
+/* Covers legacy <section class="card ..."> elements until their view is updated. */
+.dashboard-main section.card {
+    border-radius: var(--tz-radius);
+}
+
+/* 4) Dashboard KPI: Bootstrap grid defines four equal-width columns. */
+.tz-kpi {
+    min-height: 160px;
+    border-radius: var(--tz-radius);
+}
+
+.tz-kpi .card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+.tz-kpi-value,
+.dashboard-money {
+    font-size: clamp(1.35rem, 1.75vw, 1.95rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+/* Currency numbers must remain readable in RTL, including negative values. */
+.tz-number {
+    direction: ltr;
+    unicode-bidi: isolate;
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 5) Charts: Chart.js needs a sized parent; layout uses Bootstrap columns. */
+.tz-chart-area {
+    position: relative;
+    width: 100%;
+    height: var(--tz-chart-height);
+}
+
+.tz-chart-area--donut {
+    height: 270px;
+}
+
+.tz-chart-area canvas {
+    display: block;
+    max-width: 100%;
+}
+
+/* 6) Data tables and pagination: most styling comes from Bootstrap. */
 .dashboard-main .table thead th {
-    font-size: 0.85rem;
-    font-weight: 500;
+    font-size: 0.84rem;
+    font-weight: 600;
     white-space: nowrap;
 }
 
+.dashboard-main .table td,
+.dashboard-main .table th {
+    vertical-align: middle;
+}
+
+.tz-table-actions {
+    white-space: nowrap;
+}
+
+/* Native Bootstrap .badge plus contextual text/bg utility classes is preferred. */
+.tz-category-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 0.75rem;
+    flex-shrink: 0;
+}
+
+/* Paginated transactions and categories: structure uses .pagination utilities. */
+.tz-pagination .pagination {
+    margin-bottom: 0;
+}
+
+/* 7) Modals: Bootstrap supplies positioning, sizes, backdrop and behavior. */
+.tz-modal .modal-content {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+    box-shadow: 0 1.25rem 3rem rgba(10, 25, 48, 0.2);
+}
+
+.tz-modal .modal-header,
+.tz-modal .modal-footer {
+    border-color: var(--bs-border-color);
+}
+
+/* 8) Profile: stack the cards with Bootstrap d-flex flex-column gap-3. */
+.tz-profile-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--bs-body-bg);
+}
+
+/* 9) Narrow screens: desktop layout is primary, Bootstrap handles columns. */
 @media (max-width: 991.98px) {
     .dashboard-main {
-        padding: 0 0.25rem 1.5rem;
+        padding-bottom: 1.5rem;
     }
+    .tz-chart-area {
+        --tz-chart-height: 260px;
+    }
+}
 
+@media (max-width: 575.98px) {
     .dashboard-header {
-        min-height: 68px;
+        min-height: 64px;
+    }
+    .tz-kpi {
+        min-height: 138px;
+    }
+    .tz-kpi-value,
+    .dashboard-money {
+        font-size: 1.4rem;
+    }
+    .tz-chart-area {
+        --tz-chart-height: 230px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dashboard-sidebar .nav-link {
+        transition: none;
     }
 }

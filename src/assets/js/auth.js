@@ -1,148 +1,111 @@
-document.addEventListener('DOMContentLoaded', function () {
 
-    // Find the registration and login forms
-    const registerForm = document.getElementById('registerForm');
-    const loginForm = document.getElementById('loginForm');
-    const logoutForm = document.getElementById('logoutForm');
+/**
+ * TARAZINO | Login and registration.
+ * Uses AuthRequest to retain validation errors returned by Auth_api.
+ * Logout is managed ONLY by the existing logout.js.
+ */
+(function (window, document) {
+    'use strict';
 
+    const errorFields = {
+        loginForm: ['username_err', 'password_err'],
+        registerForm: [
+            'first_name_err', 'last_name_err', 'username_err', 'email_err',
+            'password_err', 'confirm_password_err',
+            'question_id_err', 'security_answer_err'
+        ]
+    };
+    const fieldIds = { confirm_password_err: 'password_confirm' };
 
-    // Handle the registration form
-    if (registerForm)
-        {setupForm(registerForm,'registerMessage',
-            [
-                'username_err',
-                'email_err',
-                'password_err',
-                'confirm_password_err'
-            ]
+    function start() {
+        Object.keys(errorFields).forEach(id => {
+            const form = document.getElementById(id);
+            if (form) connect(form, errorFields[id]);
+        });
+    }
+
+    function connect(form, errorIds) {
+        const message = document.getElementById(
+            form.id === 'loginForm' ? 'loginMessage' : 'registerMessage'
         );
-    }
+        const submit = form.querySelector('[type="submit"]');
+        if (!message || !submit) return;
 
-
-    // Handle the login form
-    if (loginForm)
-        {setupForm(loginForm,'loginMessage',
-            [
-                'username_err',
-                'password_err'
-            ]
-        );
-    }
-
-    if (logoutForm) {
-        setupForm(logoutForm, 'logoutMessage', []);
-    }
-
-
-    // Set up the selected form
-    function setupForm(form, messageBoxId, errorFields) {
-
-        const messageBox = document.getElementById(messageBoxId);
-        const submitButton = form.querySelector('button[type="submit"]');
-
-
-        // Display a general message
-        function showMessage(message, type) {
-            messageBox.textContent = message;
-            messageBox.className = 'alert alert-' + type;
+        function status(text, type = 'danger') {
+            message.textContent = text || '';
+            message.className = text ? 'alert alert-' + type : 'alert d-none';
         }
 
-
-        // Clear previous errors
-        function clearErrors() {
-
-            errorFields.forEach(function (field) {
-                document.getElementById(field).textContent = '';
-            });
-
-            messageBox.textContent = '';
-            messageBox.className = 'alert d-none';
+        function clear(id) {
+            const box = document.getElementById(id);
+            if (box) box.textContent = '';
+            const input = document.getElementById(fieldIds[id] || id.replace(/_err$/, ''));
+            if (input) input.classList.remove('is-invalid');
         }
 
-
-        // Send the form using AJAX
-        form.addEventListener('submit', async function (event) {
-
-            event.preventDefault();
-
-            clearErrors();
-
-            const buttonText = submitButton.textContent;
-
-            submitButton.disabled = true;
-            submitButton.textContent = 'در حال ارسال...';
-
-
-            try {
-
-                const response = await fetch(form.action, {
-                    method: 'POST',
-                    body: new FormData(form),
-                    headers: {
-                        'Accept': 'application/json'
-                    }
-                });
-
-                const result = await response.json();
-
-
-                // If the request is successful
-                if (response.ok && result.success) {
-
-                    showMessage(result.message, 'success');
-
-                    if (form.dataset.successUrl) {
-                        setTimeout(function () {
-                            window.location.href = form.dataset.successUrl;
-                        }, 1200);
-                    }
-
-                    return;
-                }
-
-
-                // Display field errors
-                let hasFieldError = false;
-
-                if (result.errors) {
-
-                    Object.keys(result.errors).forEach(function (field) {
-
-                        const errorElement = document.getElementById(field);
-
-                        if (errorElement && result.errors[field]) {
-                            errorElement.textContent = result.errors[field];
-                            hasFieldError = true;
-                        }
-
-                    });
-                }
-
-
-                // Display a general error if needed
-                if (!hasFieldError) {
-                    showMessage(
-                        result.message || 'خطایی رخ داده است.',
-                        'danger'
-                    );
-                }
-
-            } catch (error) {
-
-                showMessage(
-                    'خطا در ارتباط با سرور. لطفاً دوباره تلاش کنید.',
-                    'danger'
-                );
-
-            } finally {
-
-                submitButton.disabled = false;
-                submitButton.textContent = buttonText;
-
+        errorIds.forEach(id => {
+            const input = document.getElementById(fieldIds[id] || id.replace(/_err$/, ''));
+            if (input) {
+                ['input', 'change'].forEach(name => input.addEventListener(name, () => clear(id)));
             }
-
         });
 
+        let busy = false;
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (busy) return;
+            errorIds.forEach(clear);
+            status('');
+
+            if (form.id === 'registerForm') {
+                const password = form.elements.namedItem('password');
+                const confirm = form.elements.namedItem('password_confirm');
+                if (password.value !== confirm.value) {
+                    document.getElementById('confirm_password_err').textContent =
+                        'تکرار رمز عبور مطابقت ندارد.';
+                    confirm.classList.add('is-invalid');
+                    confirm.focus();
+                    return;
+                }
+            }
+
+            busy = true;
+            const original = submit.textContent;
+            submit.disabled = true;
+            submit.textContent = 'در حال بررسی...';
+            try {
+                if (!window.TarazinoAuthRequest) {
+                    throw new Error('فایل auth-request.js بارگذاری نشده است.');
+                }
+                const { ok, result } = await window.TarazinoAuthRequest.post(form.action, form);
+                if (!ok) {
+                    const errors = result.errors && typeof result.errors === 'object'
+                        ? result.errors : {};
+                    errorIds.forEach(id => {
+                        if (typeof errors[id] !== 'string' || !errors[id]) return;
+                        const box = document.getElementById(id);
+                        if (box) box.textContent = errors[id];
+                        const input = document.getElementById(fieldIds[id] || id.replace(/_err$/, ''));
+                        if (input) input.classList.add('is-invalid');
+                    });
+                    status(result.message || 'درخواست انجام نشد.');
+                    return;
+                }
+                status(result.message || 'عملیات با موفقیت انجام شد.', 'success');
+                if (form.dataset.successUrl) {
+                    window.setTimeout(() => window.location.assign(form.dataset.successUrl), 800);
+                }
+            } catch (error) {
+                status(error.message || 'درخواست انجام نشد.');
+            } finally {
+                busy = false;
+                submit.disabled = false;
+                submit.textContent = original;
+            }
+        });
     }
 
-});
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', start, { once: true });
+    } else start();
+})(window, document);

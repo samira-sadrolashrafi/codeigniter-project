@@ -1,127 +1,268 @@
 <?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+/**
+ * Tarazino | Transactions page (CodeIgniter 3, Bootstrap 5.3 RTL).
+ *
+ * Presentation-only. The existing transactions.js still owns fetching,
+ * filtering, create/edit/delete/restore and all validation messages.
+ * Existing DOM IDs and the 7/6-column table contracts are preserved.
+ *
+ * The pagination regions are deliberately hidden until a future JS module
+ * implements actual paging. Do not present nonfunctional page buttons.
+ * Future Vue components: TransactionsPage, TransactionFilters,
+ * TransactionsTable, DeletedTransactionsTable, TransactionFormModal.
+ */
+$transactions_api_url = site_url('api/transactions');
+$categories_api_url = site_url('api/categories');
+$view_username = isset($display_name) && is_string($display_name) && trim($display_name) !== ''
+    ? trim($display_name)
+    : (isset($username) && is_string($username) && trim($username) !== '' ? trim($username) : 'کاربر');
+
 $this->load->view('layouts/header', array(
     'page_title' => 'مدیریت تراکنش‌ها',
     'page_styles' => array(base_url('assets/css/dashboard.css'))
 ));
-$transactions_api_url = site_url('api/transactions');
-$categories_api_url = site_url('api/categories');
 ?>
 
-<div class="container-fluid dashboard-shell px-3 px-lg-4">
+<div class="container-fluid dashboard-shell px-0">
     <div class="row g-0">
         <?php $this->load->view('layouts/app_sidebar', array('active_page' => 'transactions')); ?>
+
         <main class="col-lg-9 col-xl-10 dashboard-main"
-      data-transactions-api-url="<?php echo html_escape($transactions_api_url); ?>"
-      data-categories-api-url="<?php echo html_escape($categories_api_url); ?>">
-    <?php $this->load->view('layouts/app_header', array('app_page_title' => 'مدیریت تراکنش‌ها', 'app_page_description' => 'درآمدها و هزینه‌های خود را ثبت و پیگیری کنید.', 'app_username' => isset($username) ? $username : '')); ?>
-    <div class="d-flex justify-content-end my-4">
-        <button type="button" id="addTransactionButton" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#transactionModal">افزودن تراکنش</button>
-    </div>
-    <div id="transactionsMessage" class="alert d-none" role="alert" aria-live="polite"></div>
-    <div class="btn-group mb-3" role="group" aria-label="نمایش تراکنش‌ها">
-        <button type="button" id="showActiveTransactionsButton" class="btn btn-primary" aria-pressed="true">تراکنش‌های فعال</button>
-        <button type="button" id="showDeletedTransactionsButton" class="btn btn-outline-primary" aria-pressed="false">تراکنش‌های حذف‌شده</button>
-    </div>
+              id="transactionsMain"
+              data-component="transactions-page"
+              data-transactions-api-url="<?php echo html_escape($transactions_api_url); ?>"
+              data-categories-api-url="<?php echo html_escape($categories_api_url); ?>">
 
-    <section id="activeTransactionsPanel">
-    <section class="card border-0 shadow-sm mb-4" aria-labelledby="transactionFiltersHeading">
-        <div class="card-body">
-            <h2 id="transactionFiltersHeading" class="h6 mb-3">جست‌وجو و فیلتر</h2>
-            <div class="row g-3">
-                <div class="col-lg-3">
-                    <label for="transactionSearch" class="form-label">جست‌وجو در عنوان و توضیحات</label>
-                    <input type="search" id="transactionSearch" class="form-control" autocomplete="off">
+            <?php $this->load->view('layouts/app_header', array(
+                'app_page_title' => 'تراکنش‌ها',
+                'app_page_description' => 'ثبت، ویرایش، مدیریت و بازیابی درآمدها و هزینه‌ها',
+                'app_username' => $view_username
+            )); ?>
+
+            <div class="px-3 px-xl-4 pt-4">
+                <!-- The button is intentionally NOT a Bootstrap data-toggle.
+                     Existing transactions.js checks category loading before opening the modal. -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+                    <div>
+                        <h2 class="h5 fw-bold mb-1">فهرست تراکنش‌ها</h2>
+                        <p class="text-body-secondary small mb-0">سوابق مالی خود را جست‌وجو و مدیریت کنید.</p>
+                    </div>
+                    <button type="button" id="addTransactionButton"
+                            class="btn btn-primary d-inline-flex align-items-center gap-2">
+                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                        <span>افزودن تراکنش</span>
+                    </button>
                 </div>
-                <div class="col-sm-6 col-lg-2">
-                    <label for="transactionTypeFilter" class="form-label">نوع</label>
-                    <select id="transactionTypeFilter" class="form-select">
-                        <option value="all">همه</option>
-                        <option value="income">درآمد</option>
-                        <option value="expense">هزینه</option>
-                    </select>
+
+                <div id="transactionsMessage" class="alert d-none" role="alert" aria-live="polite"></div>
+
+                <!-- Existing JS switches these panels using the `hidden` property;
+                     do not add Bootstrap tab data attributes here. -->
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+                    <div class="btn-group" role="group" aria-label="وضعیت فهرست تراکنش‌ها">
+                        <button type="button" id="showActiveTransactionsButton"
+                                class="btn btn-primary" aria-controls="activeTransactionsPanel" aria-pressed="true">
+                            <i class="fa-solid fa-list-check me-1" aria-hidden="true"></i>
+                            فعال
+                        </button>
+                        <button type="button" id="showDeletedTransactionsButton"
+                                class="btn btn-outline-primary" aria-controls="deletedTransactionsPanel" aria-pressed="false">
+                            <i class="fa-regular fa-trash-can me-1" aria-hidden="true"></i>
+                            حذف‌شده
+                        </button>
+                    </div>
+                    <span class="small text-body-secondary d-inline-flex align-items-center gap-2">
+                        <i class="fa-regular fa-clock" aria-hidden="true"></i>
+                        تراکنش‌های حذف‌شده تا ۳۰ روز قابل بازیابی‌اند.
+                    </span>
                 </div>
-                <div class="col-sm-6 col-lg-3">
-                    <label for="transactionCategoryFilter" class="form-label">دسته‌بندی</label>
-                    <select id="transactionCategoryFilter" class="form-select">
-                        <option value="all">همه دسته‌بندی‌ها</option>
-                    </select>
-                </div>
-                <div class="col-sm-6 col-lg-2">
-                    <label for="transactionDateFrom" class="form-label">از تاریخ</label>
-                    <input type="date" id="transactionDateFrom" class="form-control">
-                </div>
-                <div class="col-sm-6 col-lg-2">
-                    <label for="transactionDateTo" class="form-label">تا تاریخ</label>
-                    <input type="date" id="transactionDateTo" class="form-control">
+
+                <section id="activeTransactionsPanel" aria-labelledby="activeTransactionsHeading" data-component="active-transactions">
+                    <h2 id="activeTransactionsHeading" class="visually-hidden">تراکنش‌های فعال</h2>
+
+                    <!-- Filter inputs are read by the current transactions.js. -->
+                    <section class="card dashboard-card mb-3" aria-labelledby="transactionFiltersHeading" data-component="transaction-filters">
+                        <div class="card-body p-3 p-md-4">
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <i class="fa-solid fa-filter text-primary" aria-hidden="true"></i>
+                                <h3 id="transactionFiltersHeading" class="h6 fw-bold mb-0">جست‌وجو و فیلتر</h3>
+                            </div>
+                            <div class="row g-3 align-items-end">
+                                <div class="col-12 col-md-6 col-xl-4">
+                                    <label for="transactionSearch" class="form-label small fw-medium">جست‌وجو در تراکنش‌ها</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-body-tertiary" aria-hidden="true">
+                                            <i class="fa-solid fa-magnifying-glass"></i>
+                                        </span>
+                                        <input type="search" id="transactionSearch" class="form-control"
+                                               placeholder="عنوان یا توضیحات..." autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-3 col-xl-2">
+                                    <label for="transactionTypeFilter" class="form-label small fw-medium">نوع تراکنش</label>
+                                    <select id="transactionTypeFilter" class="form-select">
+                                        <option value="all">همه انواع</option>
+                                        <option value="income">درآمد</option>
+                                        <option value="expense">هزینه</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 col-md-3 col-xl-2">
+                                    <label for="transactionCategoryFilter" class="form-label small fw-medium">دسته‌بندی</label>
+                                    <select id="transactionCategoryFilter" class="form-select">
+                                        <option value="all">همه دسته‌بندی‌ها</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 col-md-6 col-xl-2">
+                                    <label for="transactionDateFrom" class="form-label small fw-medium">از تاریخ</label>
+                                    <input type="date" id="transactionDateFrom" class="form-control" autocomplete="off">
+                                </div>
+                                <div class="col-6 col-md-6 col-xl-2">
+                                    <label for="transactionDateTo" class="form-label small fw-medium">تا تاریخ</label>
+                                    <input type="date" id="transactionDateTo" class="form-control" autocomplete="off">
+                                </div>
+                            </div>
+                            <p class="form-text mb-0 mt-3">
+                                <i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>
+                                فیلترها در نسخه فعلی روی تراکنش‌های دریافت‌شده اعمال می‌شوند.
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- Keep the columns and tbody ID exactly as expected by legacy JS. -->
+                    <section class="card dashboard-card mb-4" aria-labelledby="transactionsTableHeading" data-component="transactions-table">
+                        <div class="card-header bg-body border-bottom d-flex align-items-center justify-content-between gap-2 py-3 px-3 px-md-4">
+                            <h3 id="transactionsTableHeading" class="h6 fw-bold mb-0">
+                                <i class="fa-solid fa-table-list text-primary me-2" aria-hidden="true"></i>
+                                تراکنش‌های فعال
+                            </h3>
+                            <span class="small text-body-secondary">نمایش فهرست</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col" class="ps-3">عنوان</th>
+                                        <th scope="col">نوع</th>
+                                        <th scope="col">مبلغ</th>
+                                        <th scope="col">دسته‌بندی</th>
+                                        <th scope="col">تاریخ</th>
+                                        <th scope="col">توضیحات</th>
+                                        <th scope="col" class="text-nowrap pe-3">عملیات</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsTableBody" aria-live="polite">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-body-secondary py-5">
+                                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            در حال دریافت تراکنش‌ها...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Future paginator contract; JS must populate and reveal this region. -->
+                        <div id="transactionsPagination" class="card-footer bg-body d-none" data-component="pagination">
+                            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                                <span id="transactionsPaginationSummary" class="small text-body-secondary" aria-live="polite"></span>
+                                <nav aria-label="صفحه‌بندی تراکنش‌های فعال" class="tz-pagination">
+                                    <ul id="transactionsPaginationList" class="pagination pagination-sm mb-0"></ul>
+                                </nav>
+                            </div>
+                        </div>
+                    </section>
+                </section>
+
+                <section id="deletedTransactionsPanel" class="card dashboard-card mb-4"
+                         aria-labelledby="deletedTransactionsHeading" data-component="deleted-transactions" hidden>
+                    <div class="card-header bg-body border-bottom py-3 px-3 px-md-4">
+                        <h2 id="deletedTransactionsHeading" class="h6 fw-bold mb-1">
+                            <i class="fa-regular fa-trash-can text-danger me-2" aria-hidden="true"></i>
+                            تراکنش‌های حذف‌شده
+                        </h2>
+                        <p class="small text-body-secondary mb-0">
+                            بازیابی تراکنش فقط در مهلت مقرر و در صورت فعال بودن دسته‌بندی آن امکان‌پذیر است.
+                        </p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" class="ps-3">عنوان</th>
+                                    <th scope="col">مبلغ</th>
+                                    <th scope="col">دسته‌بندی</th>
+                                    <th scope="col">تاریخ تراکنش</th>
+                                    <th scope="col">زمان حذف</th>
+                                    <th scope="col" class="text-nowrap pe-3">وضعیت و عملیات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deletedTransactionsTableBody" aria-live="polite">
+                                <tr>
+                                    <td colspan="6" class="text-center text-body-secondary py-5">
+                                        برای مشاهده تراکنش‌های حذف‌شده، این بخش را انتخاب کنید.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="deletedTransactionsPagination" class="card-footer bg-body d-none" data-component="pagination">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                            <span id="deletedTransactionsPaginationSummary" class="small text-body-secondary" aria-live="polite"></span>
+                            <nav aria-label="صفحه‌بندی تراکنش‌های حذف‌شده" class="tz-pagination">
+                                <ul id="deletedTransactionsPaginationList" class="pagination pagination-sm mb-0"></ul>
+                            </nav>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Shared modal is used by this page and the dashboard. -->
+            <?php $this->load->view('transactions/form_modal', array('form_prefix' => 'transaction')); ?>
+
+            <div class="modal fade tz-modal" id="deleteTransactionModal" tabindex="-1"
+                 aria-labelledby="deleteTransactionModalTitle" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 class="modal-title fs-5 fw-semibold" id="deleteTransactionModalTitle">
+                                <i class="fa-regular fa-trash-can text-danger me-2" aria-hidden="true"></i>
+                                حذف تراکنش
+                            </h2>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="بستن"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-2">
+                                آیا از حذف تراکنش «<span id="deleteTransactionTitle" class="fw-semibold"></span>» اطمینان دارید؟
+                            </p>
+                            <p class="small text-body-secondary mb-0">
+                                تراکنش پس از حذف تا ۳۰ روز در بخش حذف‌شده‌ها قابل بازیابی خواهد بود.
+                            </p>
+                            <div id="deleteTransactionMessage" class="alert d-none mt-3 mb-0"
+                                 role="alert" aria-live="polite"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+                            <button type="button" id="confirmDeleteTransactionButton" class="btn btn-danger">
+                                <i class="fa-solid fa-trash-can me-1" aria-hidden="true"></i>
+                                حذف تراکنش
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <p class="form-text mb-0 mt-3">فیلترها روی تراکنش‌های فعال دریافت‌شده از سرور اعمال می‌شوند.</p>
-        </div>
-    </section>
-
-    <section class="card border-0 shadow-sm" aria-labelledby="transactionsTableHeading">
-        <div class="card-body p-0">
-            <h2 id="transactionsTableHeading" class="visually-hidden">فهرست تراکنش‌ها</h2>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th scope="col">عنوان</th>
-                            <th scope="col">نوع</th>
-                            <th scope="col">مبلغ</th>
-                            <th scope="col">دسته‌بندی</th>
-                            <th scope="col">تاریخ</th>
-                            <th scope="col">توضیحات</th>
-                            <th scope="col" class="text-nowrap">عملیات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="transactionsTableBody" aria-live="polite">
-                        <tr><td colspan="7" class="text-center text-secondary py-5">در حال دریافت تراکنش‌ها...</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    </section>
-    <section id="deletedTransactionsPanel" class="card border-0 shadow-sm" aria-labelledby="deletedTransactionsHeading" hidden>
-        <div class="card-body p-0">
-            <h2 id="deletedTransactionsHeading" class="visually-hidden">تراکنش‌های حذف‌شده</h2>
-            <div class="table-responsive"><table class="table table-hover align-middle mb-0">
-                <thead class="table-light"><tr><th>عنوان</th><th>مبلغ</th><th>دسته‌بندی</th><th>تاریخ تراکنش</th><th>حذف‌شده در</th><th>وضعیت و عملیات</th></tr></thead>
-                <tbody id="deletedTransactionsTableBody" aria-live="polite"><tr><td colspan="6" class="text-center text-secondary py-5">برای مشاهده، این بخش را انتخاب کنید.</td></tr></tbody>
-            </table></div>
-        </div>
-    </section>
-
-    <?php $this->load->view('transactions/form_modal', array('form_prefix' => 'transaction')); ?>
-
-    <div class="modal fade" id="deleteTransactionModal" tabindex="-1" aria-labelledby="deleteTransactionModalTitle" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2 class="modal-title fs-5" id="deleteTransactionModalTitle">حذف تراکنش</h2>
-                    <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="بستن"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="mb-0">آیا از حذف تراکنش «<span id="deleteTransactionTitle" class="fw-semibold"></span>» اطمینان دارید؟</p>
-                    <div id="deleteTransactionMessage" class="alert d-none mt-3 mb-0" role="alert" aria-live="polite"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
-                    <button type="button" id="confirmDeleteTransactionButton" class="btn btn-danger">حذف تراکنش</button>
-                </div>
-            </div>
-        </div>
-    </div>
         </main>
     </div>
 </div>
 
 <?php $this->load->view('layouts/logout_modal'); ?>
-
 <?php
 $this->load->view('layouts/footer', array(
-    'page_scripts' => array(base_url('assets/js/transactions.js'))
+    'page_scripts' => array(
+        base_url('assets/js/api.js'),
+        base_url('assets/js/transaction-form.js'),
+        base_url('assets/js/transaction-list.js'),
+        base_url('assets/js/transactions.js')
+    )
 ));
 ?>
