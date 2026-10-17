@@ -90,6 +90,8 @@ $route['api/dashboard/balance']['post'] = 'dashboard_api/update_balance';
 
 $route['api/dashboard/balance/reset']['post'] = 'dashboard_api/reset_balance';
 
+$route['api/dashboard/cashflow']['get'] = 'dashboard_api/cashflow';
+
 
 // Category API
 $route['api/categories/deleted']['get'] = 'category_api/deleted';

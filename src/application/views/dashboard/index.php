@@ -11,7 +11,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Future dashboard.js / Vue DashboardPage contracts:
  * - #dashboardPeriod* and [data-dashboard-period] for ONE shared date filter
  * - #incomeAmount, #expenseAmount: totals for the selected period
- * - #cashflowChart, #expenseDistributionChart: Chart.js canvases
+ * - #cashflowChart: Chart.js canvas for income, expenses, and balance trends
  * - #balanceAmount, #debtAmount: current values, NOT date-filtered
  * - #dashboardTransactionsBody: active recent transactions (legacy JS hook)
  *
@@ -77,7 +77,7 @@ $this->load->view('layouts/header', array(
                                     <i class="fa-regular fa-calendar-days text-primary me-2" aria-hidden="true"></i>
                                     بازه زمانی گزارش
                                 </h3>
-                                <p class="text-body-secondary small mb-0">بازه انتخابی برای نمودار روند و نمودار توزیع هزینه یکسان است.</p>
+                                <p class="text-body-secondary small mb-0">بازه انتخابی برای نمودار روند درآمد، هزینه و موجودی اعمال می‌شود.</p>
                             </div>
                             <div class="btn-group flex-wrap" role="group" aria-label="انتخاب بازه زمانی گزارش" data-dashboard-period>
                                 <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodWeek" value="week" autocomplete="off">
@@ -185,9 +185,9 @@ $this->load->view('layouts/header', array(
                     </button>
                 </section>
 
-                <!-- Both charts receive data based on the same period state in the future JS. -->
+                <!-- The selected period controls the income, expense, and balance trend chart. -->
                 <div class="row g-3 mb-4">
-                    <div class="col-xl-8">
+                    <div class="col-12">
                         <section class="card dashboard-card h-100" aria-labelledby="cashflowChartHeading">
                             <div class="card-body p-3 p-xxl-4">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -203,31 +203,7 @@ $this->load->view('layouts/header', array(
                                 </div>
                                 <div class="tz-chart-area" aria-label="نمودار زمانی درآمد، هزینه و موجودی">
                                     <canvas id="cashflowChart" role="img" aria-label="روند درآمد، هزینه و موجودی در بازه انتخابی"></canvas>
-                                    <p id="cashflowChartPlaceholder" class="position-absolute top-50 start-50 translate-middle text-body-secondary small text-center w-75">
-                                        <i class="fa-regular fa-chart-bar d-block fs-3 mb-2" aria-hidden="true"></i>
-                                        داده‌های نمودار پس از اتصال گزارش‌ها نمایش داده می‌شوند.
-                                    </p>
                                 </div>
-                            </div>
-                        </section>
-                    </div>
-                    <div class="col-xl-4">
-                        <section class="card dashboard-card h-100" aria-labelledby="expenseChartHeading">
-                            <div class="card-body p-3 p-xxl-4">
-                                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                                    <h3 id="expenseChartHeading" class="h6 fw-bold mb-0">
-                                        <i class="fa-solid fa-chart-pie text-primary me-2" aria-hidden="true"></i>توزیع هزینه‌ها
-                                    </h3>
-                                    <span class="text-body-secondary small">همان بازه زمانی</span>
-                                </div>
-                                <div class="tz-chart-area tz-chart-area--donut" aria-label="نمودار توزیع هزینه‌ها بر اساس دسته‌بندی">
-                                    <canvas id="expenseDistributionChart" role="img" aria-label="سهم دسته‌بندی‌ها از هزینه‌های بازه انتخابی"></canvas>
-                                    <p id="expenseDistributionPlaceholder" class="position-absolute top-50 start-50 translate-middle text-body-secondary small text-center w-75">
-                                        <i class="fa-solid fa-chart-pie d-block fs-3 mb-2" aria-hidden="true"></i>
-                                        داده‌های توزیع هزینه پس از اتصال گزارش‌ها نمایش داده می‌شوند.
-                                    </p>
-                                </div>
-                                <div id="expenseDistributionLegend" class="small text-body-secondary mt-2" aria-live="polite"></div>
                             </div>
                         </section>
                     </div>

@@ -74,17 +74,6 @@
             avatarMessage('حذف عکس انتخاب شد؛ هنوز روی سرور ذخیره نشده است.');
         });
 
-        const theme = d.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'dark' : 'light';
-        d.querySelectorAll('input[name="theme"]').forEach(radio => {
-            radio.checked = radio.value === theme;
-            radio.addEventListener('change', () => {
-                if (!radio.checked) return;
-                d.documentElement.setAttribute('data-bs-theme', radio.value);
-                try { w.localStorage.setItem('tarazino-theme', radio.value); }
-                catch (_) { /* Storage can be unavailable. */ }
-            });
-        });
-
         d.querySelectorAll('[data-profile-password-toggle]').forEach(button => {
             button.addEventListener('click', () => {
                 const field = $(button.dataset.profilePasswordToggle);

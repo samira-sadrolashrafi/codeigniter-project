@@ -29,6 +29,9 @@ $chartjs_url = is_file(FCPATH . $chartjs_path)
 <!-- Existing shared logout flow; harmless on pages without its modal. -->
 <script src="<?php echo html_escape(base_url('assets/js/logout.js')); ?>"></script>
 
+<!-- Theme selection is shared by the desktop sidebar and mobile menu. -->
+<script src="<?php echo html_escape(base_url('assets/js/theme.js?v=' . filemtime(FCPATH . 'assets/js/theme.js'))); ?>"></script>
+
 <?php if ($use_charts): ?>
     <!-- Chart.js loads before the page module that creates the charts. -->
     <script src="<?php echo html_escape($chartjs_url); ?>"></script>

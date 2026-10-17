@@ -1,16 +1,14 @@
-
 /**
  * TARAZINO | JalaliDatePicker adapter (CodeIgniter 3 / Bootstrap 5 RTL)
  * Dependency: @majidh1/jalalidatepicker (local vendor JS + CSS).
  * Load vendor JS BEFORE this file and this file BEFORE page scripts.
  *
- * The ORIGINAL <input type="date"> keeps its ID, name, and ISO YYYY-MM-DD
- * value for the existing application logic/API. A read-only Persian input
- * becomes the user-facing picker, and the library writes Gregorian dates
- * directly into the original input via targetValueInput.
+ * The original input[type="date"] keeps its ID, name, and ISO YYYY-MM-DD
+ * value for application logic/API. A read-only Jalali display input is added
+ * for users. The picker writes Gregorian values to the original input.
  *
  * Public API: TarazinoDatepicker.init(root?) / .refresh(root?).
- * No jQuery, no calendar implementation, no DOM-wide digit replacement.
+ * No jQuery and no custom calendar implementation.
  */
 (function (window, document) {
     'use strict';
@@ -22,29 +20,43 @@
     });
 
     function asciiDigits(value) {
-        return String(value).replace(/[\u06F0-\u06F9]/g, function (d) {
-            return String(d.charCodeAt(0) - 0x06F0);
-        }).replace(/[\u0660-\u0669]/g, function (d) {
-            return String(d.charCodeAt(0) - 0x0660);
-        });
+        return String(value)
+            .replace(/[\u06F0-\u06F9]/g, function (digit) {
+                return String(digit.charCodeAt(0) - 0x06F0);
+            })
+            .replace(/[\u0660-\u0669]/g, function (digit) {
+                return String(digit.charCodeAt(0) - 0x0660);
+            });
     }
 
     function toJalaliAscii(iso) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return '';
-        var y = Number(iso.slice(0, 4));
-        var m = Number(iso.slice(5, 7));
-        var d = Number(iso.slice(8, 10));
-        var date = new Date(Date.UTC(y, m - 1, d));
-        if (date.getUTCFullYear() !== y || date.getUTCMonth() + 1 !== m ||
-            date.getUTCDate() !== d) return '';
-        var parts = FORMATTER.formatToParts(date);
+
+        var year = Number(iso.slice(0, 4));
+        var month = Number(iso.slice(5, 7));
+        var day = Number(iso.slice(8, 10));
+        var date = new Date(Date.UTC(year, month - 1, day));
+
+        if (date.getUTCFullYear() !== year ||
+            date.getUTCMonth() + 1 !== month ||
+            date.getUTCDate() !== day) {
+            return '';
+        }
+
         var values = {};
-        parts.forEach(function (part) {
+        FORMATTER.formatToParts(date).forEach(function (part) {
             if (['year', 'month', 'day'].includes(part.type)) {
                 values[part.type] = asciiDigits(part.value).padStart(2, '0');
             }
         });
+
         return [values.year, values.month, values.day].join('/');
+    }
+
+    function localTodayIso() {
+        var today = new Date();
+        var pad = function (value) { return String(value).padStart(2, '0'); };
+        return today.getFullYear() + '-' + pad(today.getMonth() + 1) + '-' + pad(today.getDate());
     }
 
     function toPersian(value) {
@@ -60,33 +72,48 @@
         var source = instance.source;
         var display = instance.display;
         var jalaliDate = toJalaliAscii(source.value);
+        var initialCalendarDate = jalaliDate || toJalaliAscii(localTodayIso());
+
         display.value = jalaliDate ? toPersian(jalaliDate) : '';
 
-        // Attributes are read by JalaliDatePicker when the input is focused.
-        if (jalaliDate) display.setAttribute('data-jdp-init-date', jalaliDate);
-        else display.removeAttribute('data-jdp-init-date');
+        // Keep a valid initial month even when the original date field is empty.
+        // The library reads this attribute dynamically for the currently active input.
+        // Do not call datepicker.updateOptions() here: its implementation resolves
+        // and freezes the "attr" getters, which can make later inputs write to the
+        // first input that was opened.
+        if (initialCalendarDate) {
+            display.setAttribute('data-jdp-init-date', initialCalendarDate);
+        } else {
+            display.removeAttribute('data-jdp-init-date');
+        }
+
         ['min', 'max'].forEach(function (key) {
-            var val = toJalaliAscii(source.getAttribute(key));
-            if (val) display.setAttribute('data-jdp-' + key + '-date', val);
+            var value = toJalaliAscii(source.getAttribute(key));
+            if (value) display.setAttribute('data-jdp-' + key + '-date', value);
             else display.removeAttribute('data-jdp-' + key + '-date');
         });
 
         display.disabled = source.disabled;
         display.classList.toggle('is-invalid', source.classList.contains('is-invalid'));
         display.classList.toggle('is-valid', source.classList.contains('is-valid'));
+
         if (source.hasAttribute('aria-invalid')) {
             display.setAttribute('aria-invalid', source.getAttribute('aria-invalid'));
         } else {
             display.removeAttribute('aria-invalid');
         }
-        if (instance.clear) instance.clear.disabled = source.disabled || !source.value;
+
+        if (instance.clear) {
+            instance.clear.disabled = source.disabled || !source.value;
+        }
         instance.lastValue = source.value;
 
-        // Bootstrap feedback would otherwise be hidden because the original
-        // input now lives in an input-group wrapper.
-        var feedback = instance.feedback;
-        if (feedback) {
-            feedback.classList.toggle('d-block', source.classList.contains('is-invalid'));
+        // The native input is hidden, so expose its validation feedback beside
+        // the visible display input.
+        if (instance.feedback) {
+            instance.feedback.classList.toggle(
+                'd-block', source.classList.contains('is-invalid')
+            );
         }
     }
 
@@ -96,15 +123,24 @@
             setPickerAttributes(instance);
             return;
         }
+
         instance.lastValue = value;
         instance.source.dispatchEvent(new Event('input', { bubbles: true }));
         instance.source.dispatchEvent(new Event('change', { bubbles: true }));
         setPickerAttributes(instance);
     }
 
+    function openPicker(instance) {
+        if (instance.source.disabled || !window.jalaliDatepicker) return;
+        setPickerAttributes(instance);
+        window.jalaliDatepicker.show(instance.display);
+    }
+
     function createPicker(source) {
         if (instances.has(source) || !source.id ||
-            !/^[A-Za-z][A-Za-z0-9_:-]*$/.test(source.id)) return;
+            !/^[A-Za-z][A-Za-z0-9_:-]*$/.test(source.id)) {
+            return;
+        }
 
         var field = document.createElement('input');
         field.type = 'text';
@@ -129,6 +165,7 @@
         var wrapper = document.createElement('div');
         wrapper.className = 'input-group has-validation';
         wrapper.setAttribute('data-tz-date-wrapper', '');
+
         var iconButton = document.createElement('button');
         iconButton.type = 'button';
         iconButton.className = 'btn btn-outline-secondary';
@@ -151,60 +188,87 @@
         source.classList.add('d-none');
         source.setAttribute('aria-hidden', 'true');
         source.tabIndex = -1;
+
         var label = document.querySelector('label[for="' + source.id + '"]');
         if (label) label.htmlFor = field.id;
 
-        var feedback = source.id ? document.getElementById(source.id + 'Error') : null;
-        var instance = { source: source, display: field, clear: clear,
-            wrapper: wrapper, feedback: feedback, lastValue: source.value };
+        var feedback = document.getElementById(source.id + 'Error');
+        var instance = {
+            source: source,
+            display: field,
+            clear: clear,
+            wrapper: wrapper,
+            feedback: feedback,
+            lastValue: source.value,
+            openedOnFocus: false
+        };
+
         instances.set(source, instance);
         setPickerAttributes(instance);
 
+        // The picker is kept in document.body with a z-index above Bootstrap's
+        // modal. Moving its singleton DOM nodes between modal containers, or
+        // calling updateOptions() after a field opens, breaks the library's
+        // per-input "attr" options and can route a selected date to another field.
         field.addEventListener('focus', function () {
-            setPickerAttributes(instance);
-            // Run after the datepicker's focus handler assigns its active input.
-            // Updating options before then makes its per-input date attributes
-            // resolve without an input, leaving the calendar without day cells.
+            openPicker(instance);
+            instance.openedOnFocus = true;
             window.setTimeout(function () {
-                var modal = field.closest('.modal.show');
-                var container = modal
-                    ? (modal.querySelector('.modal-content') || modal)
-                    : document.body;
-                if (window.jalaliDatepicker.updateOptions) {
-                    window.jalaliDatepicker.updateOptions({
-                        container: container, zIndex: modal ? 1080 : 1100
-                    });
-                }
-                ['jdp-container', 'jdp-overlay'].forEach(function (selector) {
-                    var popup = document.querySelector(selector);
-                    if (popup && popup.parentElement !== container) {
-                        container.appendChild(popup);
-                    }
-                });
+                instance.openedOnFocus = false;
             }, 0);
-        }, true);
-        iconButton.addEventListener('click', function () {
-            if (source.disabled) return;
-            field.focus();
-            window.jalaliDatepicker.show(field);
-        });
-        if (clear) clear.addEventListener('click', function () {
-            source.value = '';
-            notifyOriginal(instance);
-            field.focus();
-            window.jalaliDatepicker.hide();
         });
 
-        // The library updates its Gregorian target and then fires a change
-        // event on the Persian display field; propagate to existing listeners.
+        // Clicking an already-focused field must reopen the picker after a
+        // previous selection hid it. Avoid showing it twice on the focus+click
+        // sequence when focus has just opened it.
+        field.addEventListener('click', function () {
+            if (source.disabled) return;
+            if (instance.openedOnFocus) {
+                instance.openedOnFocus = false;
+                return;
+            }
+            openPicker(instance);
+        });
+
+        // Clicking the calendar icon must not bubble to the library's document
+        // auto-hide listener. With autoShow disabled, focus opens exactly once.
+        iconButton.addEventListener('click', function (event) {
+            if (source.disabled) return;
+            event.preventDefault();
+            event.stopPropagation();
+            if (document.activeElement === field) {
+                openPicker(instance);
+            } else {
+                field.focus();
+            }
+        });
+
+        if (clear) {
+            clear.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+                source.value = '';
+                notifyOriginal(instance);
+                window.jalaliDatepicker.hide();
+            });
+        }
+
+        // The library updates the Gregorian target before firing change events
+        // on the visible Jalali field. Forward the resulting value to app listeners.
         field.addEventListener('jdp:change', function () {
             queueMicrotask(function () { notifyOriginal(instance); });
         });
         field.addEventListener('change', function () {
             queueMicrotask(function () { notifyOriginal(instance); });
         });
-        source.addEventListener('input', function () { setPickerAttributes(instance); });
-        source.addEventListener('change', function () { setPickerAttributes(instance); });
+
+        source.addEventListener('input', function () {
+            setPickerAttributes(instance);
+        });
+        source.addEventListener('change', function () {
+            setPickerAttributes(instance);
+        });
+
         if (window.MutationObserver) {
             var observer = new MutationObserver(function () {
                 setPickerAttributes(instance);
@@ -220,21 +284,30 @@
     function init(container) {
         if (!window.jalaliDatepicker ||
             typeof window.jalaliDatepicker.startWatch !== 'function') {
-            console.warn('Tarazino: load vendor jalalidatepicker.min.js before jalali-datepicker.js');
-            return false; // Preserve native <input type="date"> if vendor missing.
+            console.warn(
+                'Tarazino: load vendor jalalidatepicker.min.js before jalali-datepicker.js'
+            );
+            return false;
         }
+
         var parent = container || document;
         if (parent.matches && parent.matches('input[type="date"]') &&
-            parent.getAttribute('data-jalali') !== 'off') createPicker(parent);
+            parent.getAttribute('data-jalali') !== 'off') {
+            createPicker(parent);
+        }
         parent.querySelectorAll('input[type="date"]:not([data-jalali="off"])')
             .forEach(createPicker);
 
         if (!started) {
             window.jalaliDatepicker.startWatch({
                 selector: 'input[data-tz-jalali-picker]',
+                // Auto-open is handled by this adapter so focus/click/icon actions
+                // cannot double-open the singleton calendar.
+                autoShow: false,
                 persianDigits: true,
                 targetValueInput: 'attr',
                 targetValueType: 'attr',
+                initDate: 'attr',
                 minDate: 'attr',
                 maxDate: 'attr',
                 date: true,
@@ -264,17 +337,20 @@
     }
 
     document.addEventListener('reset', function (event) {
-        // Native form reset updates .value after event handlers complete.
+        // Native form reset updates .value after reset listeners finish.
         window.setTimeout(function () { refresh(event.target); }, 0);
     }, true);
+
     ['show.bs.modal', 'shown.bs.modal'].forEach(function (eventName) {
         document.addEventListener(eventName, function (event) {
             refresh(event.target);
         });
     });
+
     window.addEventListener('pageshow', function () { refresh(); });
 
     window.TarazinoDatepicker = Object.freeze({ init: init, refresh: refresh });
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function () { init(); }, { once: true });
     } else {

@@ -1,9 +1,7 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-
 require_once APPPATH . 'services/Balance_service.php';
-
 
 class Dashboard_api extends CI_Controller
 {
@@ -15,6 +13,7 @@ class Dashboard_api extends CI_Controller
 
         $this->load->library('session');
         $this->load->helper('session');
+        $this->load->model('Dashboard_report_model');
 
         $this->balance_service = new Balance_service();
     }
@@ -29,9 +28,7 @@ class Dashboard_api extends CI_Controller
             );
         }
 
-
         $user_id = $this->session->userdata('user_id');
-
         $balance = $this->balance_service->get($user_id);
 
         if (!$balance) {
@@ -42,7 +39,6 @@ class Dashboard_api extends CI_Controller
             );
         }
 
-
         return $this->respond(
             true,
             'موجودی دریافت شد.',
@@ -52,7 +48,6 @@ class Dashboard_api extends CI_Controller
             )
         );
     }
-
 
     public function update_balance()
     {
@@ -65,11 +60,14 @@ class Dashboard_api extends CI_Controller
         }
 
         $user_id = $this->session->userdata('user_id');
-
         $balance = $this->input->post('balance');
 
-        if (!$this->balance_service->update_manual_balance($user_id,$balance)) 
-        {
+        if (
+            !$this->balance_service->update_manual_balance(
+                $user_id,
+                $balance
+            )
+        ) {
             return $this->respond(
                 false,
                 'تغییر موجودی انجام نشد.',
@@ -86,27 +84,83 @@ class Dashboard_api extends CI_Controller
     public function reset_balance()
     {
         if (!isLoggedIn()) {
-            return $this->respond(false, 'دسترسی غیرمجاز', 401);
+            return $this->respond(
+                false,
+                'دسترسی غیرمجاز',
+                401
+            );
         }
 
         $user_id = $this->session->userdata('user_id');
-        if (!$this->balance_service->reset_manual_balance($user_id)) {
-            return $this->respond(false, 'صفر کردن موجودی انجام نشد.', 422);
+
+        if (
+            !$this->balance_service->reset_manual_balance($user_id)
+        ) {
+            return $this->respond(
+                false,
+                'صفر کردن موجودی انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond(true, 'موجودی با موفقیت صفر شد.');
+        return $this->respond(
+            true,
+            'موجودی با موفقیت صفر شد.'
+        );
     }
 
-    private function respond($success, $message, $status = 200, $data = array())
+    /**
+     * Return the income, expense, and historical balance
+     * series required by the dashboard chart.
+     */
+    public function cashflow()
     {
-        $response = array_merge(array('success'=>$success,'message'=>$message),$data);
+        if (!isLoggedIn()) {
+            return $this->respond(
+                false,
+                'دسترسی غیرمجاز',
+                401
+            );
+        }
+
+        $user_id = $this->session->userdata('user_id');
+
+        $report = $this->Dashboard_report_model
+            ->get_cashflow_report($user_id);
+
+        if ($report === false) {
+            return $this->respond(
+                false,
+                'دریافت گزارش نمودار ناموفق بود.',
+                500
+            );
+        }
+
+        return $this->respond(
+            true,
+            'گزارش نمودار دریافت شد.',
+            200,
+            $report
+        );
+    }
+
+    private function respond(
+        $success,
+        $message,
+        $status = 200,
+        $data = array()
+    ) {
+        $response = array_merge(
+            array(
+                'success' => $success,
+                'message' => $message
+            ),
+            $data
+        );
 
         $this->output
             ->set_status_header($status)
-            ->set_content_type(
-                'application/json',
-                'utf-8'
-            )
+            ->set_content_type('application/json', 'utf-8')
             ->set_output(
                 json_encode(
                     $response,

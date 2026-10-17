@@ -76,6 +76,20 @@ $nav_items = array(
             <?php endforeach; ?>
         </div>
 
+        <fieldset class="tz-theme-control mt-4 pt-3 border-top border-light border-opacity-10" data-component="theme-selector">
+            <legend class="tz-theme-legend"><i class="fa-solid fa-palette" aria-hidden="true"></i><span>تم برنامه</span></legend>
+            <div class="d-flex gap-2">
+                <label class="tz-theme-option">
+                    <input type="radio" name="theme-desktop" value="light" aria-label="تم روشن">
+                    <i class="fa-solid fa-sun" aria-hidden="true"></i><span>روشن</span>
+                </label>
+                <label class="tz-theme-option">
+                    <input type="radio" name="theme-desktop" value="dark" aria-label="تم تیره">
+                    <i class="fa-solid fa-moon" aria-hidden="true"></i><span>تیره</span>
+                </label>
+            </div>
+        </fieldset>
+
         <div class="tz-sidebar-spacer pt-3 border-top border-light border-opacity-10">
             <button
                 type="button"
@@ -120,6 +134,20 @@ $nav_items = array(
                 </a>
             <?php endforeach; ?>
         </nav>
+
+        <fieldset class="tz-theme-control tz-mobile-theme-control mt-4 pt-3 border-top" data-component="theme-selector">
+            <legend class="tz-theme-legend"><i class="fa-solid fa-palette" aria-hidden="true"></i><span>تم برنامه</span></legend>
+            <div class="d-flex gap-2">
+                <label class="tz-theme-option">
+                    <input type="radio" name="theme-mobile" value="light" aria-label="تم روشن">
+                    <i class="fa-solid fa-sun" aria-hidden="true"></i><span>روشن</span>
+                </label>
+                <label class="tz-theme-option">
+                    <input type="radio" name="theme-mobile" value="dark" aria-label="تم تیره">
+                    <i class="fa-solid fa-moon" aria-hidden="true"></i><span>تیره</span>
+                </label>
+            </div>
+        </fieldset>
 
         <div class="tz-sidebar-spacer pt-3 border-top">
             <!-- Existing logout.js opens the confirmation modal after offcanvas closes. -->

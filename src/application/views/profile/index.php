@@ -7,7 +7,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * Bootstrap 5.3 RTL handles the layout, cards, inputs, modal and color modes.
  * User icons come from Font Awesome, loaded by layouts/header.php.
  * Future Vue components: ProfilePage, AccountDetails, AvatarPicker,
- * ThemeSelector, PasswordSettings. No data queries or API writes here.
+ * PasswordSettings. No data queries or API writes here.
  *
  * Future controller may pass $profile (array or object) with:
  * first_name, last_name, username, email, avatar, question_id.
@@ -79,7 +79,7 @@ $this->load->view('layouts/header', array(
         <main class="col-lg-9 col-xl-10 dashboard-main" id="profileMain" data-component="profile-page">
             <?php $this->load->view('layouts/app_header', array(
                 'app_page_title' => 'پروفایل',
-                'app_page_description' => 'اطلاعات حساب و تنظیمات ظاهری خود را مدیریت کنید.',
+                'app_page_description' => 'اطلاعات حساب خود را مدیریت کنید.',
                 'app_username' => $profile_username,
                 'app_avatar_url' => $avatar_value
             )); ?>
@@ -90,7 +90,7 @@ $this->load->view('layouts/header', array(
                         <i class="fa-regular fa-id-card text-primary me-2" aria-hidden="true"></i>
                         تنظیمات پروفایل
                     </h2>
-                    <p class="small text-body-secondary mb-0">اطلاعات حساب، تصویر، ظاهر برنامه و رمز عبور را مدیریت کنید.</p>
+                    <p class="small text-body-secondary mb-0">اطلاعات حساب، تصویر و رمز عبور را مدیریت کنید.</p>
                 </div>
 
                 <!-- The one save button belongs to this single form, below both cards. -->
@@ -106,7 +106,7 @@ $this->load->view('layouts/header', array(
                                     </span>
                                     <div>
                                         <h3 class="h6 fw-bold mb-1" id="profileAccountHeading">اطلاعات حساب کاربری</h3>
-                                        <p class="small text-body-secondary mb-0">اطلاعات شخصی و تنظیمات ظاهری حساب شما</p>
+                                        <p class="small text-body-secondary mb-0">اطلاعات شخصی و تنظیمات حساب شما</p>
                                     </div>
                                 </div>
 
@@ -207,36 +207,6 @@ $this->load->view('layouts/header', array(
                                     </div>
                                 </div>
 
-                                <hr class="my-4">
-
-                                <!-- Only Bootstrap radio cards: no additional CSS needed. -->
-                                <fieldset class="mb-0" data-component="theme-selector">
-                                    <legend class="h6 fw-bold mb-2">
-                                        <i class="fa-solid fa-palette text-primary me-2" aria-hidden="true"></i>
-                                        تم رابط کاربری
-                                    </legend>
-                                    <p class="small text-body-secondary mb-3">ظاهر برنامه را انتخاب کنید. انتخاب تم فعلاً در همین مرورگر ذخیره می‌شود.</p>
-                                    <div class="row g-3">
-                                        <div class="col-12 col-sm-6">
-                                            <label class="d-flex align-items-center justify-content-between gap-3 border rounded-3 p-3 h-100 bg-body-tertiary" for="profileThemeLight">
-                                                <span class="d-flex align-items-center gap-3">
-                                                    <i class="fa-solid fa-sun fa-lg text-warning" aria-hidden="true"></i>
-                                                    <span><strong class="d-block">تم روشن</strong><small class="text-body-secondary">روشن و کلاسیک</small></span>
-                                                </span>
-                                                <input class="form-check-input mt-0 flex-shrink-0" type="radio" name="theme" id="profileThemeLight" value="light">
-                                            </label>
-                                        </div>
-                                        <div class="col-12 col-sm-6">
-                                            <label class="d-flex align-items-center justify-content-between gap-3 border rounded-3 p-3 h-100 bg-body-tertiary" for="profileThemeDark">
-                                                <span class="d-flex align-items-center gap-3">
-                                                    <i class="fa-solid fa-moon fa-lg text-primary" aria-hidden="true"></i>
-                                                    <span><strong class="d-block">تم تیره</strong><small class="text-body-secondary">تیره و مدرن</small></span>
-                                                </span>
-                                                <input class="form-check-input mt-0 flex-shrink-0" type="radio" name="theme" id="profileThemeDark" value="dark">
-                                            </label>
-                                        </div>
-                                    </div>
-                                </fieldset>
                             </div>
                         </section>
 
