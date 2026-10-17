@@ -23,14 +23,16 @@
  */
 
 :root {
-    --tz-sidebar-bg: #0f213a;
-    --tz-sidebar-bg-end: #172f50;
+    --tz-sidebar-bg: #0a1a32;
+    --tz-sidebar-bg-end: #263a57;
     --tz-sidebar-text: #ccd8ea;
     --tz-sidebar-active: #2a4e7d;
+    --tz-sidebar-rail-width: 76px;
     --tz-page-bg: #f5f7fb;
     --tz-radius: 1rem;
     --tz-card-shadow: 0 0.35rem 1.5rem rgba(24, 45, 75, 0.045);
     --tz-chart-height: 300px;
+
 }
 
 /* Bootstrap 5.3 dark-mode support; set data-bs-theme on the HTML element. */
@@ -60,6 +62,40 @@
 /* 2) Desktop-first right sidebar; Bootstrap grid owns its width. */
 .dashboard-sidebar-wrap {
     background: var(--tz-sidebar-bg);
+    flex: 0 0 var(--tz-sidebar-rail-width);
+    width: var(--tz-sidebar-rail-width);
+    max-width: var(--tz-sidebar-rail-width);
+    transition: flex-basis 0.22s ease, width 0.22s ease, max-width 0.22s ease;
+}
+
+/* The desktop rail stays on the right; opening it shifts the main column left. */
+@media (min-width: 992px) {
+    .dashboard-shell > .row {
+        flex-wrap: nowrap;
+    }
+
+    .dashboard-sidebar-wrap.is-expanded,
+    html[data-sidebar-expanded="true"] .dashboard-sidebar-wrap {
+        flex-basis: 25%;
+        width: 25%;
+        max-width: 25%;
+    }
+
+    .dashboard-main {
+        flex: 1 1 auto;
+        width: auto;
+        max-width: none;
+        transition: width 0.22s ease;
+    }
+}
+
+@media (min-width: 1200px) {
+    .dashboard-sidebar-wrap.is-expanded,
+    html[data-sidebar-expanded="true"] .dashboard-sidebar-wrap {
+        flex-basis: 16.666667%;
+        width: 16.666667%;
+        max-width: 16.666667%;
+    }
 }
 
 .dashboard-sidebar {
@@ -72,6 +108,49 @@
     padding: 1.75rem 0.8rem 1.25rem;
     background: linear-gradient(165deg, var(--tz-sidebar-bg-end), var(--tz-sidebar-bg));
     color: #fff;
+}
+
+.sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 42px;
+    margin: 0 0 0.8rem;
+    border: 0;
+    border-radius: 0.7rem;
+    color: var(--tz-sidebar-text);
+    background: transparent;
+    cursor: pointer;
+}
+
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-toggle:focus-visible {
+    outline: 2px solid #8ec5ff;
+    outline-offset: 2px;
+}
+
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .dashboard-brand {
+    justify-content: center;
+    margin-inline: 0;
+}
+
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .dashboard-brand > span,
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .dashboard-sidebar .nav-link > span,
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .tz-theme-control,
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .tz-sidebar-spacer .nav-link > span {
+    display: none;
+}
+
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .dashboard-sidebar .nav-link,
+html:not([data-sidebar-expanded="true"]) .dashboard-sidebar-wrap:not(.is-expanded) .tz-sidebar-spacer .nav-link {
+    justify-content: center;
+    padding-inline: 0.5rem;
 }
 
 .dashboard-brand {
@@ -136,21 +215,37 @@
 
 .tz-theme-control {
     min-width: 0;
-    margin-inline: 0.5rem;
+    width: 100%;
+    margin-inline: 0;
     padding-inline: 0;
+    border: 0;
 }
 
+/* Match the navigation icon, label baseline, and horizontal padding exactly. */
 .tz-theme-legend {
     float: none;
-    width: auto;
-    margin: 0 0 0.65rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 44px;
+    margin: 0;
+    padding: 0.7rem 0.85rem;
     color: var(--tz-sidebar-text);
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.5;
 }
 
 .tz-theme-legend i {
-    margin-inline-end: 0.45rem;
+    width: 1.25rem;
+    text-align: center;
+    flex: 0 0 1.25rem;
+}
+
+.tz-theme-options {
+    padding-inline: 0.85rem;
+    padding-block: 0.3rem 0.6rem;
 }
 
 .tz-theme-option {
@@ -356,4 +451,18 @@
     .dashboard-sidebar .nav-link {
         transition: none;
     }
+}
+
+/* Chart status is readable over the canvas when results are empty/loading/failed. */
+.tz-chart-area [data-tarazino-report-status]:not([hidden]) {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    border-radius: 0.6rem;
+    text-align: center;
+    background: var(--bs-body-bg);
 }

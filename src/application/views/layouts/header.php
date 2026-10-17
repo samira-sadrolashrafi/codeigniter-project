@@ -51,8 +51,13 @@ $fontawesome_url = is_file(FCPATH . $fontawesome_path)
                 if (savedTheme === 'light' || savedTheme === 'dark') {
                     document.documentElement.setAttribute('data-bs-theme', savedTheme);
                 }
+                document.documentElement.setAttribute(
+                    'data-sidebar-expanded',
+                    window.localStorage.getItem('tarazino-sidebar-expanded') === 'true' ? 'true' : 'false'
+                );
             } catch (error) {
-                // Storage may be blocked; Bootstrap's default light mode still works.
+                // Storage may be blocked; both themes fall back to their defaults.
+                document.documentElement.setAttribute('data-sidebar-expanded', 'false');
             }
         }());
     </script>

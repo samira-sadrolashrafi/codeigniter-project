@@ -24,7 +24,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 $this->load->view('layouts/header', array(
     'page_title' => 'مدیریت دسته‌بندی‌ها',
-    'page_styles' => array(base_url('assets/css/dashboard.css'))
+    'page_styles' => array(base_url('assets/css/dashboard.css?v=' . filemtime(FCPATH . 'assets/css/dashboard.css')))
 ));
 
 $categories_api_url = site_url('api/categories');

@@ -1,5 +1,4 @@
-
-/** TARAZINO | Profile form validation and future API connection (CI3). */
+/** TARAZINO | Profile validation + real profile API integration (CI3). */
 (function (w, d) {
     'use strict';
     const $ = id => d.getElementById(id);
@@ -10,10 +9,17 @@
         const form = $('profileForm');
         const ui = w.TarazinoProfileUI && w.TarazinoProfileUI.initialize();
         if (!ui) return;
-        // Set data-profile-api-url ONLY when the secured backend route exists.
+        // URL is supplied by profile/index.php; a profile-only token is present in FormData.
         const endpoint = (root.dataset.profileApiUrl || '').trim();
+        const token = form.querySelector('input[name="profile_form_token"]');
         let initialQuestion = $('profileRecoveryQuestion').value;
+        const usernameValue = () => $('profileUsername').value.trim();
         let saving = false;
+
+        function validPersonName(name) {
+            return [...name].length <= 100 && /\p{L}/u.test(name) &&
+                /^[\p{L}\p{M}\p{Zs}\u200c\u0027\u2019-]+$/u.test(name);
+        }
 
         function message(text, type = 'danger') {
             const box = $('profileMessage');
@@ -55,8 +61,8 @@
             const emailInput = $('profileEmail');
             const avatar = ui.getAvatar();
             const issues = {
-                profileFirstName: [...first].length >= 1 && [...first].length <= 100 ? '' : 'نام باید بین ۱ تا ۱۰۰ نویسه باشد.',
-                profileLastName: [...last].length >= 1 && [...last].length <= 100 ? '' : 'نام خانوادگی باید بین ۱ تا ۱۰۰ نویسه باشد.',
+                profileFirstName: validPersonName(first) ? '' : 'نام باید بین ۱ تا ۱۰۰ نویسه و فقط شامل حروف و فاصله باشد.',
+                profileLastName: validPersonName(last) ? '' : 'نام خانوادگی باید بین ۱ تا ۱۰۰ نویسه و فقط شامل حروف و فاصله باشد.',
                 profileUsername: /^[A-Za-z0-9_]{3,100}$/.test(username) ? '' : 'نام کاربری: ۳ تا ۱۰۰ کاراکتر انگلیسی، عدد یا _',
                 profileEmail: email && email.length <= 191 && !emailInput.validity.typeMismatch ? '' : 'ایمیل معتبر وارد کنید.',
                 profileCurrentPassword: (changingPassword || recoveryChanged) && !current ? 'برای تغییر اطلاعات امنیتی، رمز فعلی الزامی است.' : '',
@@ -107,8 +113,8 @@
             if (saving) return;
             const draft = validate();
             if (!draft) return;
-            if (!endpoint) {
-                message('فرم آماده است، اما API پروفایل هنوز ساخته نشده؛ اطلاعات حساب، عکس و رمز عبور ذخیره نشدند. تم در مرورگر ذخیره می‌شود.', 'info');
+            if (!endpoint || !token || !token.value) {
+                message('آدرس API یا توکن فرم پروفایل در صفحه وجود ندارد. صفحه را دوباره بارگذاری کنید.');
                 return;
             }
             if (!w.TarazinoApi) {
@@ -126,6 +132,33 @@
                 const avatarUrl = result.profile && typeof result.profile.avatar_url === 'string'
                     ? result.profile.avatar_url : undefined;
                 ui.saved(avatarUrl);
+                // Reflect the updated user name/avatar in the navbar without a full reload.
+                const accountMenu = $('tarazinoAccountMenu');
+                if (accountMenu) {
+                    const name = accountMenu.querySelector('.fw-semibold');
+                    if (name) name.textContent = usernameValue();
+                    const menuHeader = accountMenu.parentElement?.querySelector('.dropdown-header');
+                    if (menuHeader) menuHeader.textContent = usernameValue();
+                    if (avatarUrl !== undefined) {
+                        const avatar = accountMenu.querySelector('img');
+                        const fallback = accountMenu.querySelector('span.rounded-circle');
+                        if (avatarUrl && avatar) { avatar.src = avatarUrl; avatar.classList.remove('d-none'); }
+                        else if (avatarUrl && fallback) {
+                            const newImg = d.createElement('img');
+                            newImg.src = avatarUrl; newImg.width = 40; newImg.height = 40;
+                            newImg.alt = 'عکس پروفایل';
+                            newImg.className = 'rounded-circle object-fit-cover flex-shrink-0';
+                            fallback.replaceWith(newImg);
+                        } else if (!avatarUrl && avatar) {
+                            const badge = d.createElement('span');
+                            badge.className = 'd-inline-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded-circle flex-shrink-0';
+                            badge.style.width = '40px'; badge.style.height = '40px';
+                            const icon = d.createElement('i');
+                            icon.className = 'fa-solid fa-user'; icon.setAttribute('aria-hidden', 'true');
+                            badge.append(icon); avatar.replaceWith(badge);
+                        }
+                    }
+                }
                 message(result.message || 'تغییرات با موفقیت ذخیره شدند.', 'success');
             } catch (error) {
                 message(error.message || 'ذخیره تغییرات انجام نشد.');

@@ -27,7 +27,7 @@ async function loadBalance(state) {
         message('dashboardMessage', error.message);
     }
 }
-async function reload(state) {
+async function reload(state, refreshReport = true) {
     if (state.loading) return;
     state.loading = true;
     try {
@@ -41,17 +41,19 @@ async function reload(state) {
         state.transactions = tx.transactions;
         state.categories = cat.categories;
         w.TarazinoTransactions.render(state);
-        w.TarazinoReports.render(state);
     } catch (error) {
         state.transactions = [];
         state.categories = [];
         w.TarazinoTransactions.render(state);
-        w.TarazinoReports.unavailable(state, error.message);
         message('dashboardMessage', error.message);
     } finally {
         state.loading = false;
     }
-    await loadBalance(state);
+    // Reports are independent of the recent-transactions/categories requests.
+    await Promise.all([
+        loadBalance(state),
+        refreshReport ? w.TarazinoReports.render() : Promise.resolve()
+    ]);
 }
 function wireBalance(state) {
     const form = $('balanceForm'), input = $('balanceInput');
@@ -83,7 +85,7 @@ function wireBalance(state) {
             w.bootstrap.Modal.getOrCreateInstance($('balanceModal')).hide();
             input.value = '';
             message('dashboardMessage', response.message || 'موجودی تغییر کرد.', 'success');
-            await loadBalance(state);
+            await Promise.all([loadBalance(state), w.TarazinoReports.render()]);
         } catch (error) {
             message('balanceModalMessage', error.message);
         } finally { button.disabled = false; }
@@ -95,7 +97,7 @@ function wireBalance(state) {
             const response = await w.TarazinoApi.post(state.balanceUrl + '/reset');
             w.bootstrap.Modal.getOrCreateInstance($('resetBalanceModal')).hide();
             message('dashboardMessage', response.message || 'موجودی صفر شد.', 'success');
-            await loadBalance(state);
+            await Promise.all([loadBalance(state), w.TarazinoReports.render()]);
         } catch (error) {
             message('resetBalanceMessage', error.message);
         } finally { button.disabled = false; }
@@ -118,7 +120,8 @@ function initialize() {
     w.TarazinoReports.initialize(state);
     w.TarazinoTransactions.initialize(state, () => reload(state));
     wireBalance(state);
-    reload(state);
+    // The report module loads its initial data on its own. Do not duplicate that API request.
+    reload(state, false);
 }
 if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', initialize, { once: true });
 else initialize();

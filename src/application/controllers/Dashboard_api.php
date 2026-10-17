@@ -124,9 +124,26 @@ class Dashboard_api extends CI_Controller
         }
 
         $user_id = $this->session->userdata('user_id');
+        $from = $this->input->get('from', true);
+        $to = $this->input->get('to', true);
+
+        // A report is either unbounded or has a complete inclusive ISO range.
+        if ($from !== null || $to !== null) {
+            if (
+                !$this->is_valid_report_date($from) ||
+                !$this->is_valid_report_date($to) ||
+                $from > $to
+            ) {
+                return $this->respond(
+                    false,
+                    'بازه گزارش معتبر نیست.',
+                    422
+                );
+            }
+        }
 
         $report = $this->Dashboard_report_model
-            ->get_cashflow_report($user_id);
+            ->get_cashflow_report($user_id, $from, $to);
 
         if ($report === false) {
             return $this->respond(
@@ -142,6 +159,20 @@ class Dashboard_api extends CI_Controller
             200,
             $report
         );
+    }
+
+    private function is_valid_report_date($value)
+    {
+        if (
+            !is_string($value) ||
+            !preg_match('/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $value)
+        ) {
+            return false;
+        }
+
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $date !== false && $date->format('Y-m-d') === $value;
     }
 
     private function respond(

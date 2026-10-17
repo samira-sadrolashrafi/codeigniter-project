@@ -11,7 +11,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  *
  * Future controller may pass $profile (array or object) with:
  * first_name, last_name, username, email, avatar, question_id.
- * This view intentionally does not query the DB or simulate a successful save.
+ * Save requests are handled by Profile_api and the scoped form token from Profile.php.
  */
 
 $profile_data = array();
@@ -68,7 +68,7 @@ $profile_questions = is_array($profile_questions) ? $profile_questions : array()
 
 $this->load->view('layouts/header', array(
     'page_title' => 'پروفایل',
-    'page_styles' => array(base_url('assets/css/dashboard.css'))
+    'page_styles' => array(base_url('assets/css/dashboard.css?v=' . filemtime(FCPATH . 'assets/css/dashboard.css')))
 ));
 ?>
 
@@ -76,7 +76,8 @@ $this->load->view('layouts/header', array(
     <div class="row g-0">
         <?php $this->load->view('layouts/app_sidebar', array('active_page' => 'profile')); ?>
 
-        <main class="col-lg-9 col-xl-10 dashboard-main" id="profileMain" data-component="profile-page">
+        <main class="col-lg-9 col-xl-10 dashboard-main" id="profileMain" data-component="profile-page"
+              data-profile-api-url="<?php echo html_escape(site_url('api/profile')); ?>">
             <?php $this->load->view('layouts/app_header', array(
                 'app_page_title' => 'پروفایل',
                 'app_page_description' => 'اطلاعات حساب خود را مدیریت کنید.',
@@ -95,6 +96,7 @@ $this->load->view('layouts/header', array(
 
                 <!-- The one save button belongs to this single form, below both cards. -->
                 <form id="profileForm" data-component="profile-form" enctype="multipart/form-data" novalidate>
+                    <input type="hidden" name="profile_form_token" value="<?php echo html_escape(isset($profile_form_token) ? $profile_form_token : ''); ?>">
                     <div class="d-flex flex-column gap-3">
                         <!-- Account information always appears ABOVE the password card. -->
                         <section class="card dashboard-card" aria-labelledby="profileAccountHeading" data-component="account-details">
@@ -276,7 +278,7 @@ $this->load->view('layouts/header', array(
                     </div>
                     <div id="profileMessage" class="alert alert-info d-none mt-3" role="status" aria-live="polite"></div>
                     <p class="small text-body-secondary text-center mt-2 mb-0">
-                        ذخیره اطلاعات حساب، عکس و رمز عبور پس از اتصال API پروفایل فعال خواهد شد.
+                        اطلاعات حساب و تصویر پس از ذخیره ثبت می‌شوند؛ تغییر رمز و سؤال بازیابی نیازمند رمز فعلی است.
                     </p>
                 </form>
             </div>
@@ -299,7 +301,7 @@ $this->load->view('layouts/header', array(
                 <label for="profileAvatarInput" class="form-label">انتخاب تصویر جدید</label>
                 <input type="file" class="form-control" id="profileAvatarInput" name="avatar" form="profileForm"
                        accept="image/jpeg,image/png,image/webp" aria-describedby="profileAvatarHelp">
-                <p class="form-text mb-0 mt-2" id="profileAvatarHelp">فایل JPG، PNG یا WebP، حداکثر ۲ مگابایت. انتخاب تصویر فقط پیش‌نمایش محلی است و هنوز آپلود نمی‌شود.</p>
+                <p class="form-text mb-0 mt-2" id="profileAvatarHelp">فایل JPG، PNG یا WebP، حداکثر ۲ مگابایت. تصویر پس از انتخاب پیش‌نمایش داده می‌شود و با دکمه «ذخیره تغییرات» آپلود می‌شود.</p>
                 <div class="alert alert-danger d-none mt-3 mb-0" id="profileAvatarError" role="alert"></div>
                 <div class="alert alert-success d-none mt-3 mb-0" id="profileAvatarPreviewNotice" role="status">عکس انتخاب شد. پیش‌نمایش آن پس از بستن این پنجره دیده می‌شود؛ هنوز روی سرور ذخیره نشده است.</div>
             </div>

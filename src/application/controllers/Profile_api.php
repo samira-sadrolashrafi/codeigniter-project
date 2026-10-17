@@ -25,7 +25,10 @@ class Profile_api extends CI_Controller
 
         $token = $this->input->post('profile_form_token');
         $expected = $this->session->userdata('profile_form_token');
-        if (!is_string($token) || !is_string($expected) || !hash_equals($expected, $token)) {
+        if (!is_string($token) || !is_string($expected) ||
+            !preg_match('/\A[a-f0-9]{64}\z/', $token) ||
+            !preg_match('/\A[a-f0-9]{64}\z/', $expected) ||
+            !hash_equals($expected, $token)) {
             return $this->respond(array(
                 'success' => false,
                 'message' => 'اعتبار فرم پایان یافته است. صفحه را تازه‌سازی کنید.',

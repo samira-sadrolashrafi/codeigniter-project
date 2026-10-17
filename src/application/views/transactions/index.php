@@ -21,7 +21,7 @@ $view_username = isset($display_name) && is_string($display_name) && trim($displ
 
 $this->load->view('layouts/header', array(
     'page_title' => 'مدیریت تراکنش‌ها',
-    'page_styles' => array(base_url('assets/css/dashboard.css'))
+    'page_styles' => array(base_url('assets/css/dashboard.css?v=' . filemtime(FCPATH . 'assets/css/dashboard.css')))
 ));
 ?>
 

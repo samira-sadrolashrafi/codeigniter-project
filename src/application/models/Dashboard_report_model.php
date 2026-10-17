@@ -12,7 +12,7 @@ class Dashboard_report_model extends CI_Model
      * - expense: daily expense totals
      * - balance: cumulative historical balance
      */
-    public function get_cashflow_report($user_id)
+    public function get_cashflow_report($user_id, $from = null, $to = null)
     {
         $user_id = filter_var(
             $user_id,
@@ -132,12 +132,24 @@ class Dashboard_report_model extends CI_Model
         $income = array();
         $expense = array();
         $balance = array();
+        $period_income_cents = 0;
+        $period_expense_cents = 0;
 
         // The initial balance is zero.
         $running_balance_cents = 0;
 
         foreach ($daily as $date => $values) {
+            // Build cumulative balance across the entire history first.
+            // Otherwise the first balance point in a filtered report is wrong.
             $running_balance_cents += $values['delta_cents'];
+
+            if (($from !== null && $date < $from) ||
+                ($to !== null && $date > $to)) {
+                continue;
+            }
+
+            $period_income_cents += $values['income_cents'];
+            $period_expense_cents += $values['expense_cents'];
 
             $labels[] = $date;
             $income[] = $this->cents_to_chart_number(
@@ -155,7 +167,11 @@ class Dashboard_report_model extends CI_Model
             'labels' => $labels,
             'income' => $income,
             'expense' => $expense,
-            'balance' => $balance
+            'balance' => $balance,
+            'totals' => array(
+                'income' => $this->cents_to_decimal($period_income_cents),
+                'expense' => $this->cents_to_decimal($period_expense_cents)
+            )
         );
     }
 
@@ -197,6 +213,19 @@ class Dashboard_report_model extends CI_Model
         }
 
         return $cents;
+    }
+
+    /**
+     * Return the precise amount for KPI display without float conversion.
+     */
+    private function cents_to_decimal($cents)
+    {
+        $negative = $cents < 0;
+        $absolute = abs($cents);
+        return ($negative ? '-' : '')
+            . intdiv($absolute, 100)
+            . '.'
+            . str_pad((string) ($absolute % 100), 2, '0', STR_PAD_LEFT);
     }
 
     /**

@@ -8,7 +8,7 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * The nav descriptor array can later become a Vue 3 component prop.
  *
  * Required from the parent view: $active_page (dashboard|transactions|categories|profile).
- * IMPORTANT: the /profile page is a planned route, not yet implemented in CI3.
+ * Profile route is implemented in CI3 and uses the same sidebar.
  */
 $active_page = isset($active_page) && is_string($active_page) ? $active_page : 'dashboard';
 
@@ -39,6 +39,9 @@ $nav_items = array(
 <!-- Desktop navigation; the Bootstrap grid keeps the sidebar on the right in RTL. -->
 <aside class="col-lg-3 col-xl-2 d-none d-lg-block dashboard-sidebar-wrap">
     <nav class="dashboard-sidebar" aria-label="منوی اصلی ترازینو">
+        <button type="button" class="sidebar-toggle" data-sidebar-toggle aria-expanded="false" aria-label="باز کردن منو" title="باز کردن منو">
+            <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+        </button>
         <a class="dashboard-brand" href="<?php echo html_escape(site_url('dashboard')); ?>" aria-label="ترازینو - داشبورد">
             <!-- Brand artwork: small self-contained vector mark (calculator + three bars). -->
             <svg class="tz-brand-logo" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
@@ -67,6 +70,8 @@ $nav_items = array(
                 <a
                     class="nav-link<?php echo $is_active ? ' active' : ''; ?>"
                     href="<?php echo html_escape($item['url']); ?>"
+                    aria-label="<?php echo html_escape($item['label']); ?>"
+                    title="<?php echo html_escape($item['label']); ?>"
                     <?php if ($is_active): ?>aria-current="page"<?php endif; ?>
                     data-nav-key="<?php echo html_escape($key); ?>"
                 >
@@ -76,9 +81,9 @@ $nav_items = array(
             <?php endforeach; ?>
         </div>
 
-        <fieldset class="tz-theme-control mt-4 pt-3 border-top border-light border-opacity-10" data-component="theme-selector">
+        <fieldset class="tz-theme-control mt-3 pt-2 border-top border-light border-opacity-10" data-component="theme-selector">
             <legend class="tz-theme-legend"><i class="fa-solid fa-palette" aria-hidden="true"></i><span>تم برنامه</span></legend>
-            <div class="d-flex gap-2">
+            <div class="tz-theme-options d-flex gap-2">
                 <label class="tz-theme-option">
                     <input type="radio" name="theme-desktop" value="light" aria-label="تم روشن">
                     <i class="fa-solid fa-sun" aria-hidden="true"></i><span>روشن</span>
@@ -94,6 +99,8 @@ $nav_items = array(
             <button
                 type="button"
                 class="nav-link w-100 border-0 text-start"
+                aria-label="خروج"
+                title="خروج"
                 data-bs-toggle="modal"
                 data-bs-target="#logoutConfirmModal"
             >
@@ -135,9 +142,9 @@ $nav_items = array(
             <?php endforeach; ?>
         </nav>
 
-        <fieldset class="tz-theme-control tz-mobile-theme-control mt-4 pt-3 border-top" data-component="theme-selector">
+        <fieldset class="tz-theme-control tz-mobile-theme-control mt-3 pt-2 border-top" data-component="theme-selector">
             <legend class="tz-theme-legend"><i class="fa-solid fa-palette" aria-hidden="true"></i><span>تم برنامه</span></legend>
-            <div class="d-flex gap-2">
+            <div class="tz-theme-options d-flex gap-2">
                 <label class="tz-theme-option">
                     <input type="radio" name="theme-mobile" value="light" aria-label="تم روشن">
                     <i class="fa-solid fa-sun" aria-hidden="true"></i><span>روشن</span>

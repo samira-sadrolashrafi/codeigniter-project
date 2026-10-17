@@ -1,4 +1,3 @@
-
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
@@ -142,10 +141,13 @@ class Test_data_seeder extends CI_Controller
         echo " to " . $end_date->toDateString() . "\n\n";
 
         for ($i = 1; $i <= $count; $i++) {
-            // Keep both income and expense data in the generated sample.
-            $type = random_int(1, 100) <= 35
+            // Guarantee both transaction types for COUNT >= 2, then
+            // randomize remaining rows (35% income, 65% expense).
+            $type = $count >= 2 && $i === 1
                 ? 'income'
-                : 'expense';
+                : ($count >= 2 && $i === 2
+                    ? 'expense'
+                    : (random_int(1, 100) <= 35 ? 'income' : 'expense'));
 
             $category_index = random_int(
                 0,
@@ -171,14 +173,12 @@ class Test_data_seeder extends CI_Controller
                     500000000
                 );
 
-                $income_count++;
             } else {
                 $amount_cents = random_int(
                     2000000,
                     150000000
                 );
 
-                $expense_count++;
             }
 
             $amount = $this->format_amount($amount_cents);
@@ -211,6 +211,11 @@ class Test_data_seeder extends CI_Controller
             }
 
             $created++;
+            if ($type === 'income') {
+                $income_count++;
+            } else {
+                $expense_count++;
+            }
 
             if ($created % 10 === 0) {
                 echo "Created {$created} / {$count}\n";

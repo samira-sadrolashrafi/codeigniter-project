@@ -8,15 +8,9 @@ defined('BASEPATH') OR exit('No direct script access allowed');
  * compute reports in PHP. Existing dashboard.js IDs are preserved so current
  * balance, debt, recent transactions and their modals remain usable.
  *
- * Future dashboard.js / Vue DashboardPage contracts:
- * - #dashboardPeriod* and [data-dashboard-period] for ONE shared date filter
- * - #incomeAmount, #expenseAmount: totals for the selected period
- * - #cashflowChart: Chart.js canvas for income, expenses, and balance trends
- * - #balanceAmount, #debtAmount: current values, NOT date-filtered
- * - #dashboardTransactionsBody: active recent transactions (legacy JS hook)
- *
- * NOTE: Backend report APIs do not exist yet. Chart and period controls are
- * prepared as markup, not falsely presented as functional reports.
+ * Financial report API supplies the selected-period income, expense and
+ * cashflow chart. Balance and negative-balance debt are not date filtered.
+ * All displayed dates use the existing Jalali date picker adapter; APIs use ISO.
  */
 $username = isset($username) && is_string($username) && trim($username) !== ''
     ? trim($username)
@@ -33,7 +27,7 @@ $transactions_page_url = site_url('transactions');
 
 $this->load->view('layouts/header', array(
     'page_title' => 'داشبورد',
-    'page_styles' => array(base_url('assets/css/dashboard.css'))
+    'page_styles' => array(base_url('assets/css/dashboard.css?v=' . filemtime(FCPATH . 'assets/css/dashboard.css')))
 ));
 ?>
 
@@ -41,7 +35,7 @@ $this->load->view('layouts/header', array(
      data-balance-url="<?php echo html_escape($balance_url); ?>"
      data-categories-url="<?php echo html_escape($categories_url); ?>"
      data-transactions-url="<?php echo html_escape($transactions_url); ?>"
-     data-dashboard-reports-url="<?php echo html_escape(site_url('api/dashboard/reports')); ?>">
+     data-cashflow-url="<?php echo html_escape(site_url('api/dashboard/cashflow')); ?>">
     <div class="row g-0">
         <?php $this->load->view('layouts/app_sidebar', array('active_page' => 'dashboard')); ?>
 
@@ -68,7 +62,7 @@ $this->load->view('layouts/header', array(
                     </a>
                 </div>
 
-                <!-- One future filter for BOTH financial charts and period totals. -->
+                <!-- One shared filter for the financial chart and the period totals. -->
                 <section class="card dashboard-card mb-4" aria-labelledby="dashboardDateHeading" id="dashboardDateFilter">
                     <div class="card-body py-3 px-3 px-md-4">
                         <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
@@ -82,16 +76,16 @@ $this->load->view('layouts/header', array(
                             <div class="btn-group flex-wrap" role="group" aria-label="انتخاب بازه زمانی گزارش" data-dashboard-period>
                                 <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodWeek" value="week" autocomplete="off">
                                 <label class="btn btn-outline-primary btn-sm" for="dashboardPeriodWeek">هفته جاری</label>
-                                <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodMonth" value="month" autocomplete="off" checked>
+                                <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodMonth" value="month" autocomplete="off">
                                 <label class="btn btn-outline-primary btn-sm" for="dashboardPeriodMonth">ماه جاری</label>
-                                <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodYear" value="year" autocomplete="off">
+                                <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodYear" value="year" autocomplete="off" checked>
                                 <label class="btn btn-outline-primary btn-sm" for="dashboardPeriodYear">سال جاری</label>
                                 <input class="btn-check" type="radio" name="dashboardPeriod" id="dashboardPeriodCustom" value="custom" autocomplete="off">
                                 <label class="btn btn-outline-primary btn-sm" for="dashboardPeriodCustom">بازه دلخواه</label>
                             </div>
                         </div>
-                        <!-- Dates remain ready for the reporting JS module; native inputs use ISO dates for the API. -->
-                        <div class="row g-2 align-items-end mt-2" id="dashboardCustomRange" aria-label="تاریخ شروع و پایان بازه دلخواه">
+                        <!-- Jalali adapter shows Persian dates while hidden native inputs hold ISO dates. -->
+                        <div class="row g-2 align-items-end mt-2 d-none" id="dashboardCustomRange" aria-label="تاریخ شروع و پایان بازه دلخواه">
                             <div class="col-12 col-md-4 col-xl-3">
                                 <label for="dashboardDateFrom" class="form-label small mb-1">از تاریخ</label>
                                 <input type="date" id="dashboardDateFrom" name="from" class="form-control form-control-sm" autocomplete="off">
@@ -100,18 +94,15 @@ $this->load->view('layouts/header', array(
                                 <label for="dashboardDateTo" class="form-label small mb-1">تا تاریخ</label>
                                 <input type="date" id="dashboardDateTo" name="to" class="form-control form-control-sm" autocomplete="off">
                             </div>
-                            <div class="col-12 col-md-4 col-xl-auto">
-                                <button type="button" id="applyDashboardDateFilter" class="btn btn-primary btn-sm w-100" disabled
-                                        title="بعد از تکمیل JavaScript گزارش‌ها فعال می‌شود">
-                                    <i class="fa-solid fa-filter me-1" aria-hidden="true"></i>
-                                    اعمال بازه
-                                </button>
-                            </div>
-                            <div class="col-12">
-                                <p id="dashboardDateFilterMessage" class="form-text mb-0" role="status" aria-live="polite">
-                                    نمایش نمودارها و اعمال فیلتر پس از تکمیل بخش گزارش‌گیری فعال خواهد شد.
-                                </p>
-                            </div>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-3">
+                            <p id="dashboardDateFilterMessage" class="form-text mb-0 flex-grow-1" role="status" aria-live="polite">
+                                در حال آماده‌سازی بازه گزارش...
+                            </p>
+                            <button type="button" id="applyDashboardDateFilter" class="btn btn-primary btn-sm">
+                                <i class="fa-solid fa-filter me-1" aria-hidden="true"></i>
+                                اعمال بازه
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -137,7 +128,7 @@ $this->load->view('layouts/header', array(
                                     <h3 class="h6 text-body-secondary mb-0">درآمد دوره</h3>
                                     <span class="bg-success-subtle text-success rounded-3 p-2" aria-hidden="true"><i class="fa-solid fa-arrow-trend-up"></i></span>
                                 </div>
-                                <p class="mb-0 mt-auto"><span id="incomeAmount" class="tz-kpi-value tz-number text-success" aria-live="polite">—</span></p>
+                                <p class="mb-0 mt-auto"><span id="incomeAmount" class="tz-kpi-value tz-number text-success" aria-live="polite">در حال دریافت...</span></p>
                                 <span class="text-body-secondary small">تومان · در بازه انتخابی</span>
                             </div>
                         </article>
@@ -149,7 +140,7 @@ $this->load->view('layouts/header', array(
                                     <h3 class="h6 text-body-secondary mb-0">هزینه دوره</h3>
                                     <span class="bg-danger-subtle text-danger rounded-3 p-2" aria-hidden="true"><i class="fa-solid fa-arrow-trend-down"></i></span>
                                 </div>
-                                <p class="mb-0 mt-auto"><span id="expenseAmount" class="tz-kpi-value tz-number text-danger" aria-live="polite">—</span></p>
+                                <p class="mb-0 mt-auto"><span id="expenseAmount" class="tz-kpi-value tz-number text-danger" aria-live="polite">در حال دریافت...</span></p>
                                 <span class="text-body-secondary small">تومان · در بازه انتخابی</span>
                             </div>
                         </article>
@@ -162,7 +153,7 @@ $this->load->view('layouts/header', array(
                                     <span class="bg-warning-subtle text-warning-emphasis rounded-3 p-2" aria-hidden="true"><i class="fa-solid fa-credit-card"></i></span>
                                 </div>
                                 <p class="mb-0 mt-auto"><span id="debtAmount" class="tz-kpi-value tz-number text-danger" aria-live="polite">در حال دریافت...</span></p>
-                                <span class="text-body-secondary small">تومان · مستقل از فیلتر زمانی</span>
+                                <span class="text-body-secondary small">تومان · فقط بخش منفی موجودی، مستقل از فیلتر زمانی</span>
                             </div>
                         </article>
                     </div>
@@ -309,7 +300,7 @@ $this->load->view('layouts/header', array(
 <!-- Shared transaction form, existing IDs, validation hooks and API behavior preserved. -->
 <?php $this->load->view('transactions/form_modal', array('form_prefix' => 'dashboardTransaction')); ?>
 
-<!-- Quick add category is a frontend scaffold until its dashboard handler is added. -->
+<!-- Quick add category is submitted through the dashboard JavaScript module. -->
 <div class="modal fade tz-modal" id="dashboardAddCategoryModal" tabindex="-1" aria-labelledby="dashboardAddCategoryTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -330,7 +321,7 @@ $this->load->view('layouts/header', array(
                         <option value="income">درآمد</option>
                         <option value="expense">هزینه</option>
                     </select>
-                    <p class="small text-body-secondary mt-3 mb-0">ثبت دسته‌بندی از همین مودال در مرحله تکمیل JavaScript فعال می‌شود.</p>
+                    <p class="small text-body-secondary mt-3 mb-0">با ثبت دسته‌بندی، فهرست انتخاب دسته‌بندی تراکنش نیز به‌روزرسانی می‌شود.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
