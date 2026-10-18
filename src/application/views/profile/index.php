@@ -101,14 +101,13 @@ $this->load->view('layouts/header', array(
                         <!-- Account information always appears ABOVE the password card. -->
                         <section class="card dashboard-card" aria-labelledby="profileAccountHeading" data-component="account-details">
                             <div class="card-body p-3 p-md-4">
-                                <div class="d-flex align-items-start gap-3 mb-4">
+                                <div class="d-flex align-items-center gap-3 mb-4">
                                     <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary flex-shrink-0"
                                           style="width: 42px; height: 42px;" aria-hidden="true">
                                         <i class="fa-solid fa-user-gear"></i>
                                     </span>
                                     <div>
-                                        <h3 class="h6 fw-bold mb-1" id="profileAccountHeading">اطلاعات حساب کاربری</h3>
-                                        <p class="small text-body-secondary mb-0">اطلاعات شخصی و تنظیمات حساب شما</p>
+                                        <h3 class="h6 fw-bold mb-0" id="profileAccountHeading">اطلاعات حساب کاربری</h3>
                                     </div>
                                 </div>
 
@@ -215,14 +214,13 @@ $this->load->view('layouts/header', array(
                         <!-- Password section stays BELOW account section, never side-by-side. -->
                         <section class="card dashboard-card" aria-labelledby="profilePasswordHeading" data-component="password-settings">
                             <div class="card-body p-3 p-md-4">
-                                <div class="d-flex align-items-start gap-3 mb-4">
+                                <div class="d-flex align-items-center gap-3 mb-4">
                                     <span class="d-inline-flex align-items-center justify-content-center rounded-3 bg-primary-subtle text-primary flex-shrink-0"
                                           style="width: 42px; height: 42px;" aria-hidden="true">
                                         <i class="fa-solid fa-lock"></i>
                                     </span>
                                     <div>
-                                        <h3 class="h6 fw-bold mb-1" id="profilePasswordHeading">تغییر رمز عبور</h3>
-                                        <p class="small text-body-secondary mb-0">این بخش اختیاری است؛ فقط هنگام تغییر رمز آن را تکمیل کنید.</p>
+                                        <h3 class="h6 fw-bold mb-0" id="profilePasswordHeading">تغییر رمز عبور</h3>
                                     </div>
                                 </div>
 

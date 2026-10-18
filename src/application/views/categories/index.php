@@ -257,11 +257,6 @@ $view_username = isset($username) && is_string($username) ? $username : '';
                                     </select>
                                     <div id="categoryTypeError" class="invalid-feedback"></div>
                                 </div>
-                                <div class="alert alert-info bg-info-subtle border-info-subtle small mt-3 mb-0" role="note">
-                                    <i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>
-                                    رنگ و آیکون دسته‌بندی‌ها به‌صورت پیش‌فرض تعیین می‌شوند؛
-                                    نیازی به انتخاب آن‌ها نیست.
-                                </div>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>

@@ -177,7 +177,7 @@
                         pointRadius: 3, pointHoverRadius: 5, yAxisID: 'amount' },
                     { label: 'موجودی', data: report.balance.map(Number), borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59,130,246,.10)', tension: .25, borderWidth: 2,
-                        pointRadius: 3, pointHoverRadius: 5, yAxisID: 'balance' }
+                        pointRadius: 3, pointHoverRadius: 5, yAxisID: 'amount' }
                 ]
             },
             options: {
@@ -193,10 +193,6 @@
                     x: { title: { display: true, text: 'تاریخ شمسی' } },
                     amount: { type: 'linear', position: 'left', beginAtZero: true,
                         title: { display: true, text: 'درآمد و هزینه (تومان)' },
-                        ticks: { callback: value => money.format(value) } },
-                    balance: { type: 'linear', position: 'right', beginAtZero: false,
-                        title: { display: true, text: 'موجودی (تومان)' },
-                        grid: { drawOnChartArea: false },
                         ticks: { callback: value => money.format(value) } }
                 }
             }

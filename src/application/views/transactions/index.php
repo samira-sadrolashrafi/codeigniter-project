@@ -123,10 +123,6 @@ $this->load->view('layouts/header', array(
                                     <input type="date" id="transactionDateTo" class="form-control" autocomplete="off">
                                 </div>
                             </div>
-                            <p class="form-text mb-0 mt-3">
-                                <i class="fa-solid fa-circle-info me-1" aria-hidden="true"></i>
-                                فیلترها در نسخه فعلی روی تراکنش‌های دریافت‌شده اعمال می‌شوند.
-                            </p>
                         </div>
                     </section>
 

@@ -6,6 +6,7 @@ services:
     build: .
     volumes:
       - ./src:/var/www/html
+      - profile_avatars:/var/www/html/uploads/avatars
     networks:
       - codeigniter_dev_environment_network
 
@@ -29,3 +30,6 @@ networks:
     name: codeigniter_dev_environment_network
     driver: bridge
     external: true
+
+volumes:
+  profile_avatars:

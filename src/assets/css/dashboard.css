@@ -60,12 +60,18 @@
 }
 
 /* 2) Desktop-first right sidebar; Bootstrap grid owns its width. */
-.dashboard-sidebar-wrap {
+.dashboard-shell .dashboard-sidebar-wrap {
     background: var(--tz-sidebar-bg);
     flex: 0 0 var(--tz-sidebar-rail-width);
     width: var(--tz-sidebar-rail-width);
     max-width: var(--tz-sidebar-rail-width);
     transition: flex-basis 0.22s ease, width 0.22s ease, max-width 0.22s ease;
+}
+
+/* Auth pages reuse the dark brand panel without using the dashboard rail sizing. */
+#loginPage .dashboard-sidebar-wrap,
+#registerPage .dashboard-sidebar-wrap {
+    background: linear-gradient(165deg, var(--tz-sidebar-bg-end), var(--tz-sidebar-bg));
 }
 
 /* The desktop rail stays on the right; opening it shifts the main column left. */
@@ -74,8 +80,8 @@
         flex-wrap: nowrap;
     }
 
-    .dashboard-sidebar-wrap.is-expanded,
-    html[data-sidebar-expanded="true"] .dashboard-sidebar-wrap {
+    .dashboard-shell .dashboard-sidebar-wrap.is-expanded,
+    html[data-sidebar-expanded="true"] .dashboard-shell .dashboard-sidebar-wrap {
         flex-basis: 25%;
         width: 25%;
         max-width: 25%;
@@ -90,8 +96,8 @@
 }
 
 @media (min-width: 1200px) {
-    .dashboard-sidebar-wrap.is-expanded,
-    html[data-sidebar-expanded="true"] .dashboard-sidebar-wrap {
+    .dashboard-shell .dashboard-sidebar-wrap.is-expanded,
+    html[data-sidebar-expanded="true"] .dashboard-shell .dashboard-sidebar-wrap {
         flex-basis: 16.666667%;
         width: 16.666667%;
         max-width: 16.666667%;

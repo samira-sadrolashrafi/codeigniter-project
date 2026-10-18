@@ -53,18 +53,13 @@ function validateLoginPassword($password)
 }
 
 
-/**
- * Validate a person's display name. Names are NOT unique.
- * Unicode letters/marks, spaces, apostrophes, hyphens and Persian half-space
- * are accepted. No mbstring dependency is required.
- */
+
 function validatePersonName($name, $label)
 {
     if (!is_string($name) || trim($name) === '') {
         return 'وارد کردن ' . $label . ' الزامی است.';
     }
 
-    // utf8mb4 VARCHAR(100): maximum 100 Unicode code points / 400 bytes.
     if (strlen($name) > 400
         || !preg_match('/\A[\p{L}\p{M}\p{Zs}\x{200C}\x{0027}\x{2019}\-]+\z/u', $name)
         || !preg_match('/\p{L}/u', $name)) {
@@ -79,10 +74,7 @@ function validatePersonName($name, $label)
     return '';
 }
 
-/**
- * بررسی ورودی پروفایل بدون هیچ کوئری دیتابیس.
- * از همان اعتبارسنج‌های ثبت‌نام استفاده می‌شود.
- */
+
 function validateProfileUpdate($request, $questions)
 {
     if (!is_array($request)) {

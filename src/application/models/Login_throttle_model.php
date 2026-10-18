@@ -27,22 +27,14 @@ class Login_throttle_model extends CI_Model
         return $row && (int) $row->attempts <= $max_attempts;
     }
 
-    public function allow($username, $ip)
+    public function allow($username)
     {
-        $account_key = hash('sha256', 'account:' . strtolower($username));
-        $ip_key = hash('sha256', 'ip:' . $ip);
+        $account_key = hash(
+            'sha256',
+            'account:' . strtolower($username)
+        );
 
-        $this->db->trans_begin();
-
-        $allowed = $this->use_bucket($account_key, 10)
-            && $this->use_bucket($ip_key, 50);
-
-        if (!$allowed || $this->db->trans_status() === false) {
-            $this->db->trans_rollback();
-            return false;
-        }
-
-        return $this->db->trans_commit();
+        return $this->use_bucket($account_key, 10);
     }
 
     public function clear_account($username)

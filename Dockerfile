@@ -20,6 +20,9 @@ RUN apt-get install -y libzip-dev && docker-php-ext-install zip
 
 RUN chown -R www-data:www-data /var/www/html
 
+RUN mkdir -p /var/www/html/uploads/avatars \
+	&& chown -R www-data:www-data /var/www/html/uploads
+
 RUN a2enmod rewrite
 
 RUN apachectl restart

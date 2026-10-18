@@ -135,6 +135,8 @@
 
                 <!-- Step 3: The server-issued nonce is used only to reset a password. -->
                 <form id="recoveryResetForm" class="d-none" novalidate>
+                    <input type="text" name="username" id="recoveryResetUsername"
+                           class="visually-hidden" autocomplete="username" tabindex="-1" aria-hidden="true">
                     <input type="hidden" name="nonce" id="recoveryNonce">
                     <div class="d-flex align-items-center gap-2 mb-3">
                         <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">مرحله ۳ از ۳</span>

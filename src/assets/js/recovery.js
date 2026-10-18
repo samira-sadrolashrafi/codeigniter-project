@@ -113,6 +113,7 @@
                 throw new Error('مجوز بازیابی از سرور دریافت نشد.');
             }
             $('recoveryNonce').value = result.nonce;
+            $('recoveryResetUsername').value = $('recoveryUsername').value.trim();
             answer.value = '';
             showStep(2);
             message('پاسخ تأیید شد. رمز عبور جدید را تعیین کنید.', 'success');
