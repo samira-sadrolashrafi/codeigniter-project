@@ -20,14 +20,58 @@ class Category_api extends BaseApiController
             return;
         }
 
-        $categories = $this->category_service->get_all($this->user_id);
-        if ($categories === false) {
-            return $this->respond_json(false, 'دریافت دسته‌بندی‌ها انجام نشد.', 422);
+        if ($this->input->get('page') === null &&
+            $this->input->get('per_page') === null) {
+            $categories = $this->category_service->get_all($this->user_id);
+
+            if ($categories === false) {
+                return $this->respond_json(
+                    false,
+                    'دریافت دسته‌بندی‌ها انجام نشد.',
+                    422
+                );
+            }
+
+            return $this->respond_json(
+                true,
+                'فهرست دسته‌بندی‌ها دریافت شد.',
+                200,
+                array('categories' => $categories)
+            );
         }
 
-        return $this->respond_json(true, 'فهرست دسته‌بندی‌ها دریافت شد.', 200, array(
-            'categories' => $categories
-        ));
+        $page = max(1, (int) $this->input->get('page'));
+        $per_page = (int) $this->input->get('per_page');
+
+        if ($per_page < 1) {
+            $per_page = 10;
+        }
+
+        $per_page = min($per_page, 100);
+
+        $result = $this->category_service->get_all_paginated(
+            $this->user_id,
+            $page,
+            $per_page
+        );
+
+        if ($result === false) {
+            return $this->respond_json(
+                false,
+                'دریافت دسته‌بندی‌ها انجام نشد.',
+                422
+            );
+        }
+
+        return $this->respond_json(
+            true,
+            'فهرست دسته‌بندی‌ها دریافت شد.',
+            200,
+            array(
+                'categories' => $result['categories'],
+                'pagination' => $result['pagination']
+            )
+        );
     }
 
     public function deleted()
@@ -36,19 +80,68 @@ class Category_api extends BaseApiController
             return;
         }
 
-        $categories = $this->category_service->get_deleted($this->user_id);
-        if ($categories === false) {
-            return $this->respond_json(false, 'دریافت دسته‌بندی‌های حذف‌شده انجام نشد.', 422);
+        if ($this->input->get('page') === null &&
+            $this->input->get('per_page') === null) {
+            $categories = $this->category_service->get_deleted($this->user_id);
+
+            if ($categories === false) {
+                return $this->respond_json(
+                    false,
+                    'دریافت دسته‌بندی‌های حذف‌شده انجام نشد.',
+                    422
+                );
+            }
+
+            foreach ($categories as $category) {
+                $category->restore_available = !empty($category->restore_until)
+                    && strtotime($category->restore_until) > time();
+            }
+
+            return $this->respond_json(
+                true,
+                'فهرست دسته‌بندی‌های حذف‌شده دریافت شد.',
+                200,
+                array('categories' => $categories)
+            );
         }
 
-        foreach ($categories as $category) {
+        $page = max(1, (int) $this->input->get('page'));
+        $per_page = (int) $this->input->get('per_page');
+
+        if ($per_page < 1) {
+            $per_page = 10;
+        }
+
+        $per_page = min($per_page, 100);
+
+        $result = $this->category_service->get_deleted_paginated(
+            $this->user_id,
+            $page,
+            $per_page
+        );
+
+        if ($result === false) {
+            return $this->respond_json(
+                false,
+                'دریافت دسته‌بندی‌های حذف‌شده انجام نشد.',
+                422
+            );
+        }
+
+        foreach ($result['categories'] as $category) {
             $category->restore_available = !empty($category->restore_until)
                 && strtotime($category->restore_until) > time();
         }
 
-        return $this->respond_json(true, 'فهرست دسته‌بندی‌های حذف‌شده دریافت شد.', 200, array(
-            'categories' => $categories
-        ));
+        return $this->respond_json(
+            true,
+            'فهرست دسته‌بندی‌های حذف‌شده دریافت شد.',
+            200,
+            array(
+                'categories' => $result['categories'],
+                'pagination' => $result['pagination']
+            )
+        );
     }
 
     public function store()
@@ -59,14 +152,27 @@ class Category_api extends BaseApiController
 
         $data = $this->category_input_data(true);
 
-        $category_id = $this->category_service->create($this->user_id, $data);
+        $category_id = $this->category_service->create(
+            $this->user_id,
+            $data
+        );
+
         if ($category_id === false) {
-            return $this->respond_json(false, 'ایجاد دسته‌بندی انجام نشد.', 422);
+            return $this->respond_json(
+                false,
+                'ایجاد دسته‌بندی انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'دسته‌بندی با موفقیت ایجاد شد.', 200, array(
-            'category_id' => $category_id
-        ));
+        return $this->respond_json(
+            true,
+            'دسته‌بندی با موفقیت ایجاد شد.',
+            200,
+            array(
+                'category_id' => $category_id
+            )
+        );
     }
 
     public function update($category_id)
@@ -77,11 +183,22 @@ class Category_api extends BaseApiController
 
         $data = $this->category_input_data();
 
-        if (!$this->category_service->update($this->user_id, $category_id, $data)) {
-            return $this->respond_json(false, 'ویرایش دسته‌بندی انجام نشد.', 422);
+        if (!$this->category_service->update(
+            $this->user_id,
+            $category_id,
+            $data
+        )) {
+            return $this->respond_json(
+                false,
+                'ویرایش دسته‌بندی انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'دسته‌بندی با موفقیت ویرایش شد.');
+        return $this->respond_json(
+            true,
+            'دسته‌بندی با موفقیت ویرایش شد.'
+        );
     }
 
     public function delete($category_id)
@@ -90,11 +207,21 @@ class Category_api extends BaseApiController
             return;
         }
 
-        if (!$this->category_service->delete($this->user_id, $category_id)) {
-            return $this->respond_json(false, 'حذف دسته‌بندی انجام نشد.', 422);
+        if (!$this->category_service->delete(
+            $this->user_id,
+            $category_id
+        )) {
+            return $this->respond_json(
+                false,
+                'حذف دسته‌بندی انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'دسته‌بندی با موفقیت حذف شد.');
+        return $this->respond_json(
+            true,
+            'دسته‌بندی با موفقیت حذف شد.'
+        );
     }
 
     public function restore($category_id)
@@ -103,11 +230,21 @@ class Category_api extends BaseApiController
             return;
         }
 
-        if (!$this->category_service->restore($this->user_id, $category_id)) {
-            return $this->respond_json(false, 'بازگردانی دسته‌بندی انجام نشد.', 422);
+        if (!$this->category_service->restore(
+            $this->user_id,
+            $category_id
+        )) {
+            return $this->respond_json(
+                false,
+                'بازگردانی دسته‌بندی انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'دسته‌بندی با موفقیت بازگردانی شد.');
+        return $this->respond_json(
+            true,
+            'دسته‌بندی با موفقیت بازگردانی شد.'
+        );
     }
 
     private function category_input_data($allow_json = false)
@@ -119,6 +256,7 @@ class Category_api extends BaseApiController
 
         if ($allow_json && $data['name'] === null && $data['type'] === null) {
             $json = json_decode($this->input->raw_input_stream, true);
+
             if (is_array($json)) {
                 $data = array(
                     'name' => $json['name'] ?? null,

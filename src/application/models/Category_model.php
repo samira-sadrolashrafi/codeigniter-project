@@ -44,11 +44,55 @@ class Category_model extends CI_Model
             ->order_by('id', 'DESC')->get($this->table)->result();
     }
 
+    /**
+     * Get one page of active categories for a user.
+     */
+    public function find_active_categories_by_user_id_paginated($user_id, $limit, $offset)
+    {
+        return $this->db->where('user_id', $user_id)
+            ->where('deleted_at', null)
+            ->order_by('id', 'DESC')
+            ->limit((int) $limit, (int) $offset)
+            ->get($this->table)->result();
+    }
+
+    /**
+     * Count all active categories belonging to a user.
+     */
+    public function count_active_categories_by_user_id($user_id)
+    {
+        return $this->db->where('user_id', $user_id)
+            ->where('deleted_at', null)
+            ->count_all_results($this->table);
+    }
+
     public function find_deleted_categories_by_user_id($user_id)
     {
         return $this->db->where('user_id', $user_id)
             ->where('deleted_at IS NOT NULL', null, false)
             ->order_by('deleted_at', 'DESC')->get($this->table)->result();
+    }
+
+    /**
+     * Get one page of deleted categories for a user.
+     */
+    public function find_deleted_categories_by_user_id_paginated($user_id, $limit, $offset)
+    {
+        return $this->db->where('user_id', $user_id)
+            ->where('deleted_at IS NOT NULL', null, false)
+            ->order_by('deleted_at', 'DESC')
+            ->limit((int) $limit, (int) $offset)
+            ->get($this->table)->result();
+    }
+
+    /**
+     * Count all deleted categories belonging to a user.
+     */
+    public function count_deleted_categories_by_user_id($user_id)
+    {
+        return $this->db->where('user_id', $user_id)
+            ->where('deleted_at IS NOT NULL', null, false)
+            ->count_all_results($this->table);
     }
 
     public function update_active_category_by_user($user_id, $category_id, $data)

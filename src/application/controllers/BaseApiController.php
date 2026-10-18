@@ -27,6 +27,7 @@ class BaseApiController extends CI_Controller
     {
         if (!$this->user_id) {
             $this->respond_json(false, 'ابتدا وارد حساب کاربری شوید.', 401);
+            $this->output->_display();
             exit;
         }
     }

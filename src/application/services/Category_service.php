@@ -72,6 +72,74 @@ class Category_service
         return $this->CI->Category_model->find_deleted_categories_by_user_id($user_id);
     }
 
+    /**
+     * دریافت دسته‌بندی‌های فعال به‌صورت صفحه‌بندی‌شده.
+     */
+    public function get_all_paginated($user_id, $page, $per_page)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        $page = max(1, (int) $page);
+        $per_page = max(1, (int) $per_page);
+        $offset = ($page - 1) * $per_page;
+
+        $categories = $this->CI->Category_model
+            ->find_active_categories_by_user_id_paginated(
+                $user_id,
+                $per_page,
+                $offset
+            );
+
+        $total = $this->CI->Category_model
+            ->count_active_categories_by_user_id($user_id);
+
+        return array(
+            'categories' => $categories,
+            'pagination' => array(
+                'current_page' => $page,
+                'per_page' => $per_page,
+                'total' => $total,
+                'total_pages' => (int) ceil($total / $per_page)
+            )
+        );
+    }
+
+    /**
+     * دریافت دسته‌بندی‌های حذف‌شده به‌صورت صفحه‌بندی‌شده.
+     */
+    public function get_deleted_paginated($user_id, $page, $per_page)
+    {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
+            return false;
+        }
+
+        $page = max(1, (int) $page);
+        $per_page = max(1, (int) $per_page);
+        $offset = ($page - 1) * $per_page;
+
+        $categories = $this->CI->Category_model
+            ->find_deleted_categories_by_user_id_paginated(
+                $user_id,
+                $per_page,
+                $offset
+            );
+
+        $total = $this->CI->Category_model
+            ->count_deleted_categories_by_user_id($user_id);
+
+        return array(
+            'categories' => $categories,
+            'pagination' => array(
+                'current_page' => $page,
+                'per_page' => $per_page,
+                'total' => $total,
+                'total_pages' => (int) ceil($total / $per_page)
+            )
+        );
+    }
+
     public function update($user_id, $category_id, $data)
     {
         if (!is_array($data)) {
