@@ -17,23 +17,6 @@ class Transaction_model extends CI_Model
     }
 
 
-    public function find_transaction_by_id_with_lock($user_id, $transaction_id)
-    {
-        $query = $this->db->query(
-            'SELECT *
-             FROM transactions
-             WHERE id = ?
-             AND user_id = ?
-             FOR UPDATE',
-            array(
-                $transaction_id,
-                $user_id
-            )
-        );
-
-        return $query ? $query->row() : false;
-    }
-
 
     public function find_transaction_by_id($user_id, $transaction_id)
     {
@@ -45,22 +28,12 @@ class Transaction_model extends CI_Model
     }
 
 
-    public function find_active_transactions_by_category_with_lock($user_id, $category_id)
+    public function find_active_transactions_by_category($user_id, $category_id)
     {
-        $query = $this->db->query(
-            'SELECT *
-             FROM transactions
-             WHERE user_id = ?
-             AND category_id = ?
-             AND deleted_at IS NULL
-             FOR UPDATE',
-            array(
-                $user_id,
-                $category_id
-            )
-        );
-
-        return $query ? $query->result() : false;
+        return $this->db->where('user_id', $user_id)
+            ->where('category_id', $category_id)
+            ->where('deleted_at', null)
+            ->get($this->table)->result();
     }
 
 

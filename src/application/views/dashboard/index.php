@@ -53,7 +53,7 @@ $this->load->view('layouts/header', array(
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
                     <div>
                         <h2 class="h4 fw-bold mb-1">سلام، <?php echo html_escape($display_name); ?> <span aria-hidden="true">👋</span></h2>
-                        <p class="text-body-secondary small mb-0">با ترازینو، کنترل دخل‌وخرجت ساده‌تر می‌شود.</p>
+                        <p class="text-body-secondary small mb-0">با ترازینو، کنترل دخل‌وخرجت ساده‌تر میشه!</p>
                     </div>
                     <a class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2"
                        href="<?php echo html_escape($transactions_page_url); ?>">

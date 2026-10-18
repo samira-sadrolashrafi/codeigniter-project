@@ -29,15 +29,6 @@ class Profile_model extends CI_Model
             ->where('id !=', (int) $user_id)->count_all_results('users') > 0;
     }
 
-    public function lock_active_user($user_id)
-    {
-        $result = $this->db->query(
-            'SELECT * FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
-            array((int) $user_id)
-        );
-        return $result ? $result->row() : false;
-    }
-
     public function update_active_user($user_id, $changes)
     {
         return $this->db->where('id', (int) $user_id)

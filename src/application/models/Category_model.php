@@ -13,15 +13,6 @@ class Category_model extends CI_Model
         return (int) $this->db->insert_id();
     }
 
-    public function find_category_by_id_with_lock($user_id, $category_id)
-    {
-        $query = $this->db->query(
-            'SELECT * FROM categories WHERE id = ? AND user_id = ? FOR UPDATE',
-            array($category_id, $user_id)
-        );
-        return $query ? $query->row() : false;
-    }
-
     public function find_category_by_id($user_id, $category_id)
     {
         return $this->db->where('id', $category_id)

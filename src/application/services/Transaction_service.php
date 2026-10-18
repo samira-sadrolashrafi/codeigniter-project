@@ -165,13 +165,13 @@ class Transaction_service
         $db = $this->CI->db;
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
 
         $category = $this->CI->Category_model
-            ->find_category_by_id_with_lock(
+            ->find_category_by_id(
                 $user_id,
                 $values['category_id']
             );
@@ -354,13 +354,13 @@ class Transaction_service
         $db = $this->CI->db;
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
 
         $old = $this->CI->Transaction_model
-            ->find_transaction_by_id_with_lock(
+            ->find_transaction_by_id(
                 $user_id,
                 $transaction_id
             );
@@ -371,13 +371,13 @@ class Transaction_service
         }
 
         $old_category = $this->CI->Category_model
-            ->find_category_by_id_with_lock(
+            ->find_category_by_id(
                 $user_id,
                 $old->category_id
             );
 
         $new_category = $this->CI->Category_model
-            ->find_category_by_id_with_lock(
+            ->find_category_by_id(
                 $user_id,
                 $values['category_id']
             );
@@ -441,13 +441,13 @@ class Transaction_service
         $db = $this->CI->db;
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
 
         $transaction = $this->CI->Transaction_model
-            ->find_transaction_by_id_with_lock(
+            ->find_transaction_by_id(
                 $user_id,
                 $transaction_id
             );
@@ -458,7 +458,7 @@ class Transaction_service
         }
 
         $category = $this->CI->Category_model
-            ->find_category_by_id_with_lock(
+            ->find_category_by_id(
                 $user_id,
                 $transaction->category_id
             );
@@ -511,13 +511,13 @@ class Transaction_service
         $db = $this->CI->db;
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
 
         $transaction = $this->CI->Transaction_model
-            ->find_transaction_by_id_with_lock(
+            ->find_transaction_by_id(
                 $user_id,
                 $transaction_id
             );
@@ -533,7 +533,7 @@ class Transaction_service
         }
 
         $category = $this->CI->Category_model
-            ->find_category_by_id_with_lock(
+            ->find_category_by_id(
                 $user_id,
                 $transaction->category_id
             );

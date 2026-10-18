@@ -26,7 +26,7 @@ class Category_service
         $db = $this->CI->db;
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id) || $this->check_duplicate_name($user_id, $name)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id) || $this->check_duplicate_name($user_id, $name)) {
             $db->trans_rollback();
             return false;
         }
@@ -154,13 +154,13 @@ class Category_service
 
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
 
             $db->trans_rollback();
             return false;
         }
 
-        $category = $this->CI->Category_model->find_category_by_id_with_lock(
+        $category = $this->CI->Category_model->find_category_by_id(
             $user_id,
             $category_id
         );
@@ -232,22 +232,18 @@ class Category_service
     {
         $db = $this->CI->db;
         $db->trans_begin();
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
-        $category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $category_id);
+        $category = $this->CI->Category_model->find_category_by_id($user_id, $category_id);
         if (!$category || $category->deleted_at !== null) {
             $db->trans_rollback();
             return false;
         }
         $now = date('Y-m-d H:i:s');
         $until = date('Y-m-d H:i:s', time() + $this->restore_days * 86400);
-        $transactions = $this->CI->Transaction_model->find_active_transactions_by_category_with_lock($user_id, $category_id);
-        if ($transactions === false) {
-            $db->trans_rollback();
-            return false;
-        }
+        $transactions = $this->CI->Transaction_model->find_active_transactions_by_category($user_id, $category_id);
 
         foreach ($transactions as $transaction) {
             if (!$this->CI->Transaction_model->soft_delete_transaction_by_user($user_id, $transaction->id, $now, $until) ||
@@ -270,11 +266,11 @@ class Category_service
     {
         $db = $this->CI->db;
         $db->trans_begin();
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
-        $category = $this->CI->Category_model->find_category_by_id_with_lock($user_id, $category_id);
+        $category = $this->CI->Category_model->find_category_by_id($user_id, $category_id);
         if (!$category || !$category->deleted_at || !$category->restore_until ||
             strtotime($category->restore_until) <= time() ||
             $this->check_duplicate_name($user_id, $category->name, $category_id)) {

@@ -42,15 +42,6 @@ class User_model extends CI_Model
             ->get($this->table)->row();
     }
 
-    public function lock_active_by_id($user_id)
-    {
-        $query = $this->db->query(
-            'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
-            array($user_id)
-        );
-        return $query ? $query->row() : false;
-    }
-
     public function update_remember_token($user_id, $hash, $expires_at)
     {
         $query_success = $this->db

@@ -98,7 +98,7 @@ class Balance_service
         $amount = $this->normalize_amount($amount);
 
         if ($amount === false ||
-            !$this->CI->User_model->lock_active_by_id($user_id) ||
+            !$this->CI->User_model->find_active_by_id($user_id) ||
             !$this->CI->Balance_model->find_by_user_id($user_id)
         ) {
             return false;
@@ -116,7 +116,7 @@ class Balance_service
 
         if (
             $amount === false ||
-            !$this->CI->User_model->lock_active_by_id($user_id) ||
+            !$this->CI->User_model->find_active_by_id($user_id) ||
             !$this->CI->Balance_model->find_by_user_id($user_id)
         ) {
             return false;
@@ -175,7 +175,7 @@ class Balance_service
 
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }
@@ -235,7 +235,7 @@ class Balance_service
 
         $db->trans_begin();
 
-        if (!$this->CI->User_model->lock_active_by_id($user_id)) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
             return false;
         }

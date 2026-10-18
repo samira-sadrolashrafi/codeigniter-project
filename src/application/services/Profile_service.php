@@ -71,9 +71,9 @@ class Profile_service
         $db->trans_begin();
 
         try {
-            $locked_user = $this->CI->Profile_model->lock_active_user($user_id);
-            if (!$locked_user || (($password_change || $recovery_change) &&
-                !password_verify($security['current_password'], $locked_user->password))) {
+            $active_user = $this->CI->Profile_model->find_active_user($user_id);
+            if (!$active_user || (($password_change || $recovery_change) &&
+                !password_verify($security['current_password'], $active_user->password))) {
                 return $this->rollback($new_avatar,
                     'رمز فعلی اشتباه است یا حساب در دسترس نیست.', 401);
             }
@@ -123,13 +123,13 @@ class Profile_service
         }
 
         $avatar = $new_avatar !== null ? $new_avatar :
-            ($remove_avatar ? null : $locked_user->avatar);
+            ($remove_avatar ? null : $active_user->avatar);
         $this->CI->session->set_userdata(array(
             'username' => $changes['username'],
             'avatar' => $avatar
         ));
-        if (($new_avatar !== null || $remove_avatar) && $locked_user->avatar !== $avatar) {
-            $this->remove_avatar($locked_user->avatar);
+        if (($new_avatar !== null || $remove_avatar) && $active_user->avatar !== $avatar) {
+            $this->remove_avatar($active_user->avatar);
         }
 
         return array(

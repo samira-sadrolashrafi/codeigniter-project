@@ -30,7 +30,7 @@ class Recovery_model extends CI_Model
     {
         $this->db->trans_begin();
         $user = $this->db->query(
-            'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL FOR UPDATE',
+            'SELECT id FROM users WHERE id = ? AND deleted_at IS NULL',
             array((int) $user_id)
         )->row();
 
