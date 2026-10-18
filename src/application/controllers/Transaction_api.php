@@ -14,36 +14,105 @@ class Transaction_api extends BaseApiController
         $this->transaction_service = new Transaction_service();
     }
 
-    public function index()
+    private function get_pagination_params()
     {
-        $transactions = $this->transaction_service->get_all($this->current_user_id());
+        $requested_page = $this->input->get('page');
+        $requested_per_page = $this->input->get('per_page');
 
-        if ($transactions === false) {
-            return $this->respond_json(false, 'دریافت تراکنش‌ها انجام نشد.', 422);
+        if (
+            $requested_page === null &&
+            $requested_per_page === null
+        ) {
+            return array(
+                'page' => null,
+                'per_page' => 10
+            );
         }
 
-        return $this->respond_json(true, 'لیست تراکنش‌ها با موفقیت دریافت شد.', 200, array(
-            'transactions' => $transactions
-        ));
+        $page = filter_var(
+            $requested_page,
+            FILTER_VALIDATE_INT
+        );
+
+        if ($page === false || $page < 1) {
+            $page = 1;
+        }
+
+        $per_page = filter_var(
+            $requested_per_page,
+            FILTER_VALIDATE_INT
+        );
+
+        if ($per_page === false || $per_page < 1) {
+            $per_page = 10;
+        }
+
+        return array(
+            'page' => $page,
+            'per_page' => min($per_page, 100)
+        );
     }
+
+
+    public function index()
+    {
+        $pagination = $this->get_pagination_params();
+
+        $result = $this->transaction_service->get_all(
+            $this->current_user_id(),
+            $pagination['page'],
+            $pagination['per_page']
+        );
+
+        if ($result === false) {
+            return $this->respond_json(
+                false,
+                'دریافت تراکنش‌ها انجام نشد.',
+                422
+            );
+        }
+
+        return $this->respond_json(
+            true,
+            'لیست تراکنش‌ها با موفقیت دریافت شد.',
+            200,
+            $result
+        );
+    }
+
 
     public function deleted()
     {
-        $transactions = $this->transaction_service->get_deleted($this->current_user_id());
+        $pagination = $this->get_pagination_params();
 
-        if ($transactions === false) {
-            return $this->respond_json(false, 'دریافت تراکنش‌های حذف‌شده انجام نشد.', 422);
+        $result = $this->transaction_service->get_deleted(
+            $this->current_user_id(),
+            $pagination['page'],
+            $pagination['per_page']
+        );
+
+        if ($result === false) {
+            return $this->respond_json(
+                false,
+                'دریافت تراکنش‌های حذف‌شده انجام نشد.',
+                422
+            );
         }
 
-        foreach ($transactions as $transaction) {
-            $transaction->restore_available = !empty($transaction->restore_until)
+        foreach ($result['transactions'] as $transaction) {
+            $transaction->restore_available =
+                !empty($transaction->restore_until)
                 && strtotime($transaction->restore_until) > time();
         }
 
-        return $this->respond_json(true, 'فهرست تراکنش‌های حذف‌شده دریافت شد.', 200, array(
-            'transactions' => $transactions
-        ));
+        return $this->respond_json(
+            true,
+            'فهرست تراکنش‌های حذف‌شده دریافت شد.',
+            200,
+            $result
+        );
     }
+
 
     public function store()
     {
@@ -61,13 +130,23 @@ class Transaction_api extends BaseApiController
         );
 
         if ($transaction_id === false) {
-            return $this->respond_json(false, 'ایجاد تراکنش انجام نشد.', 422);
+            return $this->respond_json(
+                false,
+                'ایجاد تراکنش انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'تراکنش با موفقیت ایجاد شد.', 200, array(
-            'transaction_id' => $transaction_id
-        ));
+        return $this->respond_json(
+            true,
+            'تراکنش با موفقیت ایجاد شد.',
+            200,
+            array(
+                'transaction_id' => $transaction_id
+            )
+        );
     }
+
 
     public function update($transaction_id)
     {
@@ -84,11 +163,19 @@ class Transaction_api extends BaseApiController
             $transaction_id,
             $data
         )) {
-            return $this->respond_json(false, 'ویرایش تراکنش انجام نشد.', 422);
+            return $this->respond_json(
+                false,
+                'ویرایش تراکنش انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'تراکنش با موفقیت ویرایش شد.');
+        return $this->respond_json(
+            true,
+            'تراکنش با موفقیت ویرایش شد.'
+        );
     }
+
 
     public function delete($transaction_id)
     {
@@ -96,11 +183,19 @@ class Transaction_api extends BaseApiController
             $this->current_user_id(),
             $transaction_id
         )) {
-            return $this->respond_json(false, 'حذف تراکنش انجام نشد.', 422);
+            return $this->respond_json(
+                false,
+                'حذف تراکنش انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'تراکنش با موفقیت حذف شد.');
+        return $this->respond_json(
+            true,
+            'تراکنش با موفقیت حذف شد.'
+        );
     }
+
 
     public function restore($transaction_id)
     {
@@ -108,9 +203,16 @@ class Transaction_api extends BaseApiController
             $this->current_user_id(),
             $transaction_id
         )) {
-            return $this->respond_json(false, 'بازگردانی تراکنش انجام نشد.', 422);
+            return $this->respond_json(
+                false,
+                'بازگردانی تراکنش انجام نشد.',
+                422
+            );
         }
 
-        return $this->respond_json(true, 'تراکنش با موفقیت بازگردانی شد.');
+        return $this->respond_json(
+            true,
+            'تراکنش با موفقیت بازگردانی شد.'
+        );
     }
 }

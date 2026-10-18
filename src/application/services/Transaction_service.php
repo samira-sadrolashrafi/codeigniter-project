@@ -21,13 +21,7 @@ class Transaction_service
         $this->balance_service = new Balance_service();
     }
 
-    /**
-     * Calculate the signed amount for the balance history.
-     *
-     * Income adds to the balance.
-     * Expense subtracts from the balance.
-     * Reversal events use the opposite sign.
-     */
+
     private function get_history_delta($type, $amount, $reverse = false)
     {
         if ($type !== 'income' && $type !== 'expense') {
@@ -53,11 +47,7 @@ class Transaction_service
         return $is_negative ? '-' . $amount : $amount;
     }
 
-    /**
-     * Record a financial event in the current database transaction.
-     *
-     * Returns true on success, or false on failure.
-     */
+
     private function record_history_event(
         $user_id,
         $event_type,
@@ -196,8 +186,7 @@ class Transaction_service
 
         $id = $this->CI->Transaction_model->create($values);
 
-        if (
-            !$id ||
+        if (!$id ||
             !$this->balance_service->apply_transaction_effect(
                 $user_id,
                 $category->type,
@@ -235,24 +224,123 @@ class Transaction_service
         ) ? $transaction : false;
     }
 
-    public function get_all($user_id)
+    /**
+     * Get active transactions with optional server-side pagination.
+     *
+     * When $page is null, preserve the previous behavior and return
+     * all active transactions for compatibility with the current frontend.
+     */
+    public function get_all($user_id, $page = null, $per_page = 10)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             return false;
         }
 
-        return $this->CI->Transaction_model
-            ->find_active_transactions_by_user_id($user_id);
+        $total = $this->CI->Transaction_model
+            ->count_active_transactions_by_user_id($user_id);
+
+        if ($total === false) {
+            return false;
+        }
+
+        if ($page === null) {
+            // Preserve the previous behavior until the frontend sends page.
+            $transactions = $this->CI->Transaction_model
+                ->find_active_transactions_by_user_id($user_id);
+
+            $current_page = 1;
+            $effective_per_page = max(1, $total);
+            $total_pages = $total > 0 ? 1 : 0;
+        } else {
+            $page = max(1, (int) $page);
+            $per_page = max(1, min(100, (int) $per_page));
+
+            $offset = ($page - 1) * $per_page;
+
+            $transactions = $this->CI->Transaction_model
+                ->find_active_transactions_by_user_id(
+                    $user_id,
+                    $per_page,
+                    $offset
+                );
+
+            $current_page = $page;
+            $effective_per_page = $per_page;
+            $total_pages = (int) ceil($total / $per_page);
+        }
+
+        if ($transactions === false) {
+            return false;
+        }
+
+        return array(
+            'transactions' => $transactions,
+            'pagination' => array(
+                'current_page' => $current_page,
+                'per_page' => $effective_per_page,
+                'total_items' => $total,
+                'total_pages' => $total_pages
+            )
+        );
     }
 
-    public function get_deleted($user_id)
+    /**
+     * Get deleted transactions with optional server-side pagination.
+     *
+     * When $page is null, preserve the previous behavior and return
+     * all deleted transactions for compatibility with the current frontend.
+     */
+    public function get_deleted($user_id, $page = null, $per_page = 10)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             return false;
         }
 
-        return $this->CI->Transaction_model
-            ->find_deleted_transactions_by_user_id($user_id);
+        $total = $this->CI->Transaction_model
+            ->count_deleted_transactions_by_user_id($user_id);
+
+        if ($total === false) {
+            return false;
+        }
+
+        if ($page === null) {
+            $transactions = $this->CI->Transaction_model
+                ->find_deleted_transactions_by_user_id($user_id);
+
+            $current_page = 1;
+            $effective_per_page = max(1, $total);
+            $total_pages = $total > 0 ? 1 : 0;
+        } else {
+            $page = max(1, (int) $page);
+            $per_page = max(1, min(100, (int) $per_page));
+
+            $offset = ($page - 1) * $per_page;
+
+            $transactions = $this->CI->Transaction_model
+                ->find_deleted_transactions_by_user_id(
+                    $user_id,
+                    $per_page,
+                    $offset
+                );
+
+            $current_page = $page;
+            $effective_per_page = $per_page;
+            $total_pages = (int) ceil($total / $per_page);
+        }
+
+        if ($transactions === false) {
+            return false;
+        }
+
+        return array(
+            'transactions' => $transactions,
+            'pagination' => array(
+                'current_page' => $current_page,
+                'per_page' => $effective_per_page,
+                'total_items' => $total,
+                'total_pages' => $total_pages
+            )
+        );
     }
 
     public function update($user_id, $transaction_id, $data)
