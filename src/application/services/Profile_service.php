@@ -10,11 +10,11 @@ class Profile_service
     {
         $this->CI =& get_instance();
         $this->CI->load->helper(array('validation', 'session'));
-        $this->CI->load->model(array('Profile_model', 'Recovery_throttle_model'));
+        $this->CI->load->model('Profile_model');
         $this->CI->load->config('recovery_questions');
     }
 
-    public function update($user_id, $request, $files, $ip_address)
+    public function update($user_id, $request, $files)
     {
         $user = $this->CI->Profile_model->find_active_user($user_id);
         if (!$user) {
@@ -40,15 +40,6 @@ class Profile_service
         $password_change = $validated['password_change'];
         $recovery_change = $validated['recovery_change'];
         $security = $validated['security'];
-
-        if ($password_change || $recovery_change) {
-            $allowed = $this->CI->Recovery_throttle_model->allow(
-                $user->username, $ip_address, 'profile', 5, 25
-            );
-            if (!$allowed) {
-                return $this->error('تعداد تلاش‌ها زیاد است. ۱۵ دقیقه بعد تلاش کنید.', 429);
-            }
-        }
 
         $remove_avatar = isset($request['remove_avatar']) && $request['remove_avatar'] === '1';
         $upload = isset($files['avatar']) ? $files['avatar'] : null;

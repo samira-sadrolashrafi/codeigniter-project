@@ -31,8 +31,7 @@ class Profile_api extends BaseApiController
         $result = $this->profile_service->update(
             (int) $this->current_user_id(),
             $this->input->post(NULL, false),
-            $_FILES,
-            $this->input->ip_address()
+            $_FILES
         );
 
         $status = $result['status'] ?? 200;

@@ -17,7 +17,6 @@ class Transaction_model extends CI_Model
     }
 
 
-
     public function find_transaction_by_id($user_id, $transaction_id)
     {
         return $this->db

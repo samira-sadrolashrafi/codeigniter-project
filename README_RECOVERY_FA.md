@@ -10,7 +10,7 @@
 - هش پاسخ با `password_hash()` در جدول `user_recovery` ذخیره می‌شود؛ متن اصلی ذخیره نمی‌شود.
 - Modal فراموشی رمز در صفحه ورود، **بدون صفحه جدید**:
   1. نام کاربری → نمایش سؤال (برای حساب ناموجود، سؤال پیش‌فرض نمایش داده می‌شود تا وجود حساب مستقیماً اعلام نشود).
-  2. تأیید پاسخ با `password_verify()` و Rate Limiting: ۵ تلاش برای هر حساب و ۲۵ تلاش از یک IP در پنجره ۱۵ دقیقه‌ای.
+  2. تأیید پاسخ با `password_verify()`؛ تعداد تلاش‌های بازیابی محدود نمی‌شود.
   3. مجوز بازیابی Session با اعتبار ۵ دقیقه و Nonce یک‌بارمصرف → تعیین رمز جدید و تکرار آن → تأیید.
   4. ورود دستی با رمز جدید؛ پاسخ امنیتی به‌تنهایی باعث ورود مستقیم نمی‌شود.
 - پس از تغییر رمز، Remember-Me Token کاربر باطل می‌شود. **نشست‌های باز دیگر به‌طور خودکار باطل نمی‌شوند**؛ برای محیط عملیاتی باید سازوکار ابطال نشست نیز اضافه شود.
@@ -20,7 +20,8 @@
   - `POST /auth/recovery/verify`
   - `POST /auth/recovery/reset`
   - `POST /auth/recovery/enroll` (نیازمند ورود و رمز فعلی)
-- بسته شامل **Login Rate Limiting قبلی** نیز هست تا نسخه‌های Migration هماهنگ بمانند (`006` و `007`).
+- محدودسازی تلاش‌های ورود همچنان فعال است و به بازیابی رمز ارتباطی ندارد (`006`).
+- Migration شماره `010` جدول قدیمی `recovery_throttles` را با `DROP TABLE IF EXISTS` حذف می‌کند؛ جدول و اطلاعات `user_recovery` حفظ می‌شوند. Migrationهای قدیمی تغییر نکرده‌اند.
 
 ## نصب
 
@@ -44,7 +45,7 @@ docker compose up -d --build
 docker compose exec codeigniter-dev-environment php index.php migrate
 ```
 
-باید `Migration completed successfully.` نمایش داده شود و Migration 6 و 7 اعمال شوند. **Migration نسخه ۷ وابسته به نسخه ۶ است.** بدون Migration فرم ثبت‌نام جدید کار نمی‌کند.
+باید `Migration completed successfully.` نمایش داده شود و Migrationهای جدید تا نسخه 10 اعمال شوند. Migration 7 جداول اولیه بازیابی را اضافه می‌کند و Migration 10 جدول محدودسازی قدیمی بازیابی را حذف می‌کند. جدول `user_recovery` باقی می‌ماند. بدون Migration فرم ثبت‌نام جدید کار نمی‌کند.
 
 ## تست پیشنهادی در مرورگر
 
@@ -55,7 +56,7 @@ docker compose exec codeigniter-dev-environment php index.php migrate
 5. رمز مطابق الگوی اعتبارسنجی قبلی پروژه (۸ کاراکتر، حروف بزرگ/کوچک انگلیسی، عدد و کاراکتر خاص) ثبت کنید. باید پیام موفقیت بگیرید.
 6. Modal را ببندید و با **رمز جدید** وارد شوید؛ رمز قبلی نباید کار کند.
 7. با یک حساب قدیمی وارد شوید و از دکمه «سؤال بازیابی» پاسخ را تنظیم کنید. برای ذخیره رمز فعلی لازم است.
-8. روی حساب تست با ۶ تلاش بازیابی، وضعیت `429` را ببینید؛ بعد از ۱۵ دقیقه دوباره آزمون کنید.
+8. تعداد تلاش‌های بازیابی محدود نمی‌شود؛ پاسخ‌های نادرست همچنان رد می‌شوند و برای ادامه باید پاسخ درست ارائه شود.
 
 ## تست API از Postman
 
@@ -81,13 +82,14 @@ x-www-form-urlencoded: nonce=<NONCE_FROM_VERIFY>, password=<NEW_PASSWORD>, passw
 - `src/application/controllers/Recovery_api.php` (جدید)
 - `src/application/services/Auth_service.php` (درج اتمیک سؤال و پاسخ همراه ثبت‌نام)
 - `src/application/models/Recovery_model.php` (جدید)
-- `src/application/models/Recovery_throttle_model.php` (جدید)
 - `src/application/models/Login_throttle_model.php` (پچ قبل)
 - `src/application/config/recovery_questions.php` (جدید)
 - `src/application/config/routes.php` (چهار Route جدید)
-- `src/application/config/migration.php` (نسخه ۷)
+- `src/application/config/migration.php` (نسخه ۱۰)
 - `src/application/migrations/006_create_login_throttles.php` (پچ قبل)
 - `src/application/migrations/007_create_account_recovery.php` (جدید)
+- `src/application/migrations/010_drop_recovery_throttles.php` (جدید؛ حذف جدول قدیمی محدودسازی بازیابی)
+- `src/application/controllers/Recovery_api.php` و `src/application/services/Profile_service.php` (حذف محدودسازی تلاش بازیابی)
 - `src/application/views/auth/register.php`
 - `src/application/views/auth/login.php`
 - `src/application/views/auth/recovery_modal.php` (جدید)
@@ -105,7 +107,7 @@ x-www-form-urlencoded: nonce=<NONCE_FROM_VERIFY>, password=<NEW_PASSWORD>, passw
 
 ## ملاحظات امنیتی برای نسخه عملیاتی
 
-- بهترین روش بازیابی: ایمیل تأییدشده + لینک تصادفی کوتاه‌عمر یک‌بارمصرف + محدودسازی درخواست.
+- بهترین روش بازیابی: ایمیل تأییدشده + لینک تصادفی کوتاه‌عمر یک‌بارمصرف.
 - فعال‌سازی CSRF برای تمامی فرم‌ها و Fetchهای برنامه؛ پروژه اولیه `csrf_protection = FALSE` دارد.
 - جلوگیری از User Enumeration زمانی: پاسخ سؤال از نظر زمان و توزیع واقعی اطلاعات هنوز کاملاً یکنواخت نیست.
 - مکانیزم invalidate-all-sessions پس از تغییر رمز.

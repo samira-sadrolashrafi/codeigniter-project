@@ -12,7 +12,7 @@ class Recovery_api extends BaseApiController
         // Recovery challenges must remain available to signed-out users.
         parent::__construct(false);
         $this->load->helper('validation');
-        $this->load->model(array('User_model', 'Recovery_model', 'Recovery_throttle_model'));
+        $this->load->model(array('User_model', 'Recovery_model'));
         $this->load->config('recovery_questions');
         $this->questions = $this->config->item('recovery_questions');
         $this->output->set_header('Cache-Control: no-store, max-age=0');
@@ -26,10 +26,6 @@ class Recovery_api extends BaseApiController
             return $this->respond_json(false, 'نام کاربری معتبر وارد کنید.', 422);
         }
         $username = trim($username);
-        if (!$this->Recovery_throttle_model->allow($username, $this->input->ip_address(), 'question', 20, 40)) {
-            return $this->respond_json(false, 'تعداد درخواست‌ها بیش از حد مجاز است. ۱۵ دقیقه بعد امتحان کنید.', 429);
-        }
-
         $user = $this->User_model->find_by_username($username);
 
         $recovery = $user && $user->deleted_at === null ? $this->Recovery_model->find_for_user($user->id) : null;
@@ -61,10 +57,6 @@ class Recovery_api extends BaseApiController
 
         if (!is_string($answer) || trim($answer) === '' || strlen($answer) > 256) {
             return $this->respond_json(false, 'پاسخ امنیتی معتبر وارد کنید.', 422);
-        }
-
-        if (!$this->Recovery_throttle_model->allow($username, $this->input->ip_address(), 'verify', 5, 25)) {
-            return $this->respond_json(false, 'تعداد پاسخ‌های اشتباه یا درخواست‌ها زیاد است. ۱۵ دقیقه بعد امتحان کنید.', 429);
         }
 
         $user = $this->User_model->find_by_username($username);
@@ -137,9 +129,6 @@ class Recovery_api extends BaseApiController
         if (!$user || !is_string($password) || strlen($password) > 1024 || !$this->valid_question($question_id)
             || !$this->valid_answer($answer)) {
             return $this->respond_json(false, 'مقادیر فرم تنظیم سؤال امنیتی نامعتبر است.', 422);
-        }
-        if (!$this->Recovery_throttle_model->allow($user->username, $this->input->ip_address(), 'enroll', 5, 25)) {
-            return $this->respond_json(false, 'تعداد تلاش‌ها بیش از حد مجاز است. ۱۵ دقیقه بعد امتحان کنید.', 429);
         }
         if (!password_verify($password, $user->password)) {
             return $this->respond_json(false, 'رمز عبور فعلی اشتباه است.', 401);
