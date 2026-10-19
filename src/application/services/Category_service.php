@@ -355,6 +355,15 @@ class Category_service
                     $user_id,
                     $category->type,
                     $transaction->amount
+                ) ||
+                !$this->balance_service->record_transaction_history_event(
+                    $user_id,
+                    'transaction_delete_reversal',
+                    $category->type,
+                    $transaction->amount,
+                    $transaction->transaction_date,
+                    $transaction->id,
+                    true
                 )
             ) {
                 $db->trans_rollback();

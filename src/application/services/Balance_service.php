@@ -137,6 +137,71 @@ class Balance_service
         return $this->CI->Balance_model->find_by_user_id($user_id);
     }
 
+    /**
+     * Build the signed balance-history delta for a transaction effect.
+     *
+     * income  => +amount, expense => -amount; reversed when $reverse is true,
+     * e.g. the reversal recorded when a transaction is soft-deleted.
+     */
+    public function get_history_delta($type, $amount, $reverse = false)
+    {
+        if ($type !== 'income' && $type !== 'expense') {
+            return false;
+        }
+
+        $amount = $this->normalize_amount($amount);
+
+        if ($amount === false) {
+            return false;
+        }
+
+        $is_negative = ($type === 'expense');
+
+        if ($reverse) {
+            $is_negative = !$is_negative;
+        }
+
+        if ($amount === '0.00') {
+            return '0.00';
+        }
+
+        return $is_negative ? '-' . $amount : $amount;
+    }
+
+    /**
+     * Record a transaction-related balance history event, shared by every
+     * service that changes the balance because of a transaction.
+     */
+    public function record_transaction_history_event(
+        $user_id,
+        $event_type,
+        $effect_type,
+        $amount,
+        $effective_date,
+        $transaction_id,
+        $reverse = false
+    ) {
+        $amount_delta = $this->get_history_delta(
+            $effect_type,
+            $amount,
+            $reverse
+        );
+
+        if ($amount_delta === false) {
+            return false;
+        }
+
+        $event_id = $this->CI->Balance_history_model->create_event(array(
+            'user_id' => $user_id,
+            'transaction_id' => $transaction_id,
+            'event_type' => $event_type,
+            'amount_delta' => $amount_delta,
+            'effective_date' => $effective_date
+        ));
+
+        return $event_id !== false;
+    }
+
     public function apply_transaction_effect($user_id, $type, $amount)
     {
         if ($type === 'income') {

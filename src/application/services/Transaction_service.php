@@ -24,32 +24,9 @@ class Transaction_service
     }
 
 
-    private function get_history_delta($type, $amount, $reverse = false)
-    {
-        if ($type !== 'income' && $type !== 'expense') {
-            return false;
-        }
-
-        $amount = $this->balance_service->normalize_amount($amount);
-
-        if ($amount === false) {
-            return false;
-        }
-
-        $is_negative = ($type === 'expense');
-
-        if ($reverse) {
-            $is_negative = !$is_negative;
-        }
-
-        if ($amount === '0.00') {
-            return '0.00';
-        }
-
-        return $is_negative ? '-' . $amount : $amount;
-    }
-
-
+    /**
+     * ثبت رویداد تاریخچه موجودی؛ منطق مشترک در Balance_service اجرا می‌شود.
+     */
     private function record_history_event(
         $user_id,
         $event_type,
@@ -59,25 +36,15 @@ class Transaction_service
         $transaction_id,
         $reverse = false
     ) {
-        $amount_delta = $this->get_history_delta(
+        return $this->balance_service->record_transaction_history_event(
+            $user_id,
+            $event_type,
             $effect_type,
             $amount,
+            $effective_date,
+            $transaction_id,
             $reverse
         );
-
-        if ($amount_delta === false) {
-            return false;
-        }
-
-        $event_id = $this->CI->Balance_history_model->create_event(array(
-            'user_id' => $user_id,
-            'transaction_id' => $transaction_id,
-            'event_type' => $event_type,
-            'amount_delta' => $amount_delta,
-            'effective_date' => $effective_date
-        ));
-
-        return $event_id !== false;
     }
 
 

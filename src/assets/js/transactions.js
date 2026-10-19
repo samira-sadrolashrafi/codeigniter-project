@@ -436,6 +436,15 @@
             s.busy = false;
             s.deletingId = null;
             button.disabled = false;
+
+            // The deleted list was refreshed while s.busy was still true,
+            // which left every restore button rendered as disabled.
+            if (s.deletedLoaded) {
+                list.render(
+                    'deleted',
+                    s.pagination.deleted
+                );
+            }
         }
     }
 

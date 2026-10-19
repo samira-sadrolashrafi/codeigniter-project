@@ -195,7 +195,11 @@ class Transaction_model extends CI_Model
         $user_id,
         $filters = array()
     ) {
+        // Explicit select is required: without it, `SELECT *` returns both
+        // tables' `id` columns and the later (categories.id) overwrites
+        // transactions.id in the result object, breaking edit/delete actions.
         $this->db
+            ->select('transactions.*')
             ->from($this->table)
             ->join(
                 'categories',
