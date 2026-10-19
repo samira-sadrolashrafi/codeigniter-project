@@ -62,36 +62,21 @@ class BaseApiController extends CI_Controller
     /**
      * پاسخ خطای یک عملیات بر اساس آخرین علت ثبت‌شده در سرویس.
      *
-     * سرویس‌ها هنگام شکست، پیام و وضعیت HTTP علت واقعی را در
-     * get_last_error() قرار می‌دهند. اگر سرویس دلیلی ثبت نکرده
-     * باشد، پیام عمومی محترمانه برگردانده می‌شود تا جزئیات فنی
-     * یا خطاهای ناشناخته به کاربر نمایش داده نشود.
+     * سرویس‌ها هنگام شکست، پیام و وضعیت HTTP علت واقعی را ثبت می‌کنند؛
+     * این جا با یک تابع مشترک، همان پیام و وضعیت به کاربر می‌رسد و اگر
+     * سرویس دلیلی ثبت نکرده باشد، پیام عمومی محترمانه برگردانده می‌شود.
      */
     protected function respond_service_error(
         $service,
         $fallback_message,
         $fallback_status = 500
     ) {
-        $error = is_object($service) &&
-            method_exists($service, 'get_last_error')
-                ? $service->get_last_error()
-                : null;
+        $error = $service->get_last_error();
 
-        $message = is_array($error) && !empty($error['message'])
-            ? $error['message']
-            : $fallback_message;
-
-        $status = is_array($error) && isset($error['status'])
-            ? (int) $error['status']
-            : $fallback_status;
-
-        if ($error === null) {
-            log_message(
-                'error',
-                'Service failure without a recorded reason: ' . $fallback_message
-            );
-        }
-
-        return $this->respond_json(false, $message, $status);
+        return $this->respond_json(
+            false,
+            $error['message'] ?? $fallback_message,
+            $error['status'] ?? $fallback_status
+        );
     }
 }

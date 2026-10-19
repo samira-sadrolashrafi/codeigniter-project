@@ -78,10 +78,9 @@ class Transaction_api extends BaseApiController
         );
 
         if ($result === false) {
-            return $this->respond_json(
-                false,
-                'دریافت تراکنش‌ها انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->transaction_service,
+                'دریافت تراکنش‌ها انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -104,10 +103,9 @@ class Transaction_api extends BaseApiController
         );
 
         if ($result === false) {
-            return $this->respond_json(
-                false,
-                'دریافت تراکنش‌های حذف‌شده انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->transaction_service,
+                'دریافت تراکنش‌های حذف‌شده انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -141,10 +139,9 @@ class Transaction_api extends BaseApiController
         );
 
         if ($transaction_id === false) {
-            return $this->respond_json(
-                false,
-                'ایجاد تراکنش انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->transaction_service,
+                'ایجاد تراکنش انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -173,10 +170,9 @@ class Transaction_api extends BaseApiController
             $transaction_id,
             $data
         )) {
-            return $this->respond_json(
-                false,
-                'ویرایش تراکنش انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->transaction_service,
+                'ویرایش تراکنش انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -192,10 +188,9 @@ class Transaction_api extends BaseApiController
             $this->current_user_id(),
             $transaction_id
         )) {
-            return $this->respond_json(
-                false,
-                'حذف تراکنش انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->transaction_service,
+                'حذف تراکنش انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -211,10 +206,9 @@ class Transaction_api extends BaseApiController
             $this->current_user_id(),
             $transaction_id
         )) {
-            return $this->respond_json(
-                false,
-                'بازگردانی تراکنش انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->transaction_service,
+                'بازگردانی تراکنش انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 

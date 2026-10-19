@@ -37,6 +37,14 @@ class Dashboard_api extends BaseApiController
     {
         $balance = $this->input->post('balance');
 
+        // پیام دقیق مرتبط با مبلغ (فرمت صرف، صفر یا اندازه بیش از حد)
+        // پیش از فراخوانی سرویس بررسی می‌شود.
+        $amount_error = $this->balance_service->amount_error($balance, true);
+
+        if ($amount_error !== null) {
+            return $this->respond_json(false, $amount_error, 422);
+        }
+
         if (!$this->balance_service->update_manual_balance($this->user_id, $balance)) {
             return $this->respond_json(false, 'تغییر موجودی انجام نشد.', 422);
         }
