@@ -29,6 +29,10 @@ $chartjs_url = is_file(FCPATH . $chartjs_path)
 <!-- Existing shared logout flow; harmless on pages without its modal. -->
 <script src="<?php echo html_escape(base_url('assets/js/logout.js')); ?>"></script>
 
+<!-- Auto-dismisses transient alerts (role=alert/status) 3s after they appear; -->
+<!-- safe on pages with no alerts and skips permanent notes (role="note"). -->
+<script src="<?php echo html_escape(base_url('assets/js/auto-dismiss.js?v=' . filemtime(FCPATH . 'assets/js/auto-dismiss.js'))); ?>"></script>
+
 <!-- Collapsible desktop navigation; pages without the sidebar are unaffected. -->
 <script src="<?php echo html_escape(base_url('assets/js/sidebar.js?v=' . filemtime(FCPATH . 'assets/js/sidebar.js'))); ?>"></script>
 
