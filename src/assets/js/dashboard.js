@@ -55,13 +55,51 @@ async function reload(state, refreshReport = true) {
         refreshReport ? w.TarazinoReports.render() : Promise.resolve()
     ]);
 }
+function balanceKeydown(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+    if (/^[0-9]$/.test(event.key)) return;
+    const input = event.currentTarget;
+    const remaining = input.value.slice(0, input.selectionStart) + input.value.slice(input.selectionEnd);
+    if (event.key === '-') {
+        if (input.selectionStart === 0 && !remaining.includes('-')) return;
+    }
+    if (event.key === '.') {
+        const integerBeforeCursor = w.PersianFormat.normalizeInputNumber(input.value.slice(0, input.selectionStart)).replace('-', '').split('.')[0];
+        if (!remaining.includes('.') && /[0-9]/.test(integerBeforeCursor)) return;
+    }
+    event.preventDefault();
+}
+function balancePaste(event) {
+    event.preventDefault();
+    const input = event.currentTarget;
+    const clipboard = event.clipboardData || w.clipboardData;
+    const pasted = clipboard ? clipboard.getData('text') : '';
+    const normalized = w.PersianFormat.normalizeInputNumber(pasted).trim();
+    if (!/^-?\d+(?:\.\d{1,2})?$/.test(normalized)) {
+        input.classList.add('is-invalid');
+        $('balanceInputError').classList.add('d-block');
+        return;
+    }
+    const start = input.selectionStart, end = input.selectionEnd;
+    const result = w.PersianFormat.formatAmountInput(
+        input.value.slice(0, start) + normalized + input.value.slice(end),
+        start + normalized.length
+    );
+    input.value = result.text;
+    input.setSelectionRange(result.caret, result.caret);
+    input.classList.remove('is-invalid');
+    $('balanceInputError').classList.remove('d-block');
+    message('balanceModalMessage', '');
+}
 function wireBalance(state) {
     const form = $('balanceForm'), input = $('balanceInput');
     if (!form || !input) return;
+    input.addEventListener('keydown', balanceKeydown);
+    input.addEventListener('paste', balancePaste);
     input.addEventListener('input', () => {
-        const caret = input.selectionStart;
-        input.value = w.PersianFormat.digits(input.value);
-        if (caret !== null) input.setSelectionRange(caret, caret);
+        const result = w.PersianFormat.formatAmountInput(input.value, input.selectionStart);
+        input.value = result.text;
+        input.setSelectionRange(result.caret, result.caret);
         input.classList.remove('is-invalid');
         $('balanceInputError').classList.remove('d-block');
         message('balanceModalMessage', '');

@@ -48,7 +48,7 @@
                 editingId = String(tx.id);
                 $('transactionModalTitle').textContent = 'ویرایش تراکنش';
                 field('Title').value = tx.title || '';
-                field('Amount').value = fmt().digits(tx.amount == null ? '' : tx.amount);
+                field('Amount').value = fmt().groupDigits(tx.amount == null ? '' : tx.amount);
                 field('Date').value = tx.transaction_date || '';
                 field('Description').value = tx.description || '';
                 const category = categoryOf(tx);
@@ -113,16 +113,50 @@
             } catch (e) { notice('transactionFormMessage', e.message); }
             finally { s.busy = false; button.disabled = false; }
         }
+        function amountKeydown(event) {
+            if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+            if (/^[0-9]$/.test(event.key)) return;
+            if (event.key === '.') {
+                const input = event.currentTarget;
+                const remaining = input.value.slice(0, input.selectionStart) + input.value.slice(input.selectionEnd);
+                const integerBeforeCursor = fmt().normalizeInputNumber(input.value.slice(0, input.selectionStart)).split('.')[0];
+                if (!remaining.includes('.') && /[0-9]/.test(integerBeforeCursor)) return;
+            }
+            event.preventDefault();
+        }
+        function amountPaste(event) {
+            event.preventDefault();
+            const input = event.currentTarget;
+            const clipboard = event.clipboardData || w.clipboardData;
+            const pasted = clipboard ? clipboard.getData('text') : '';
+            const normalized = fmt().normalizeInputNumber(pasted).trim();
+            if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+                error('Amount', 'مبلغ کپی‌شده معتبر نیست؛ فقط عدد مثبت با حداکثر دو رقم اعشار وارد کنید.');
+                return;
+            }
+            const start = input.selectionStart, end = input.selectionEnd;
+            const result = fmt().formatAmountInput(
+                input.value.slice(0, start) + normalized + input.value.slice(end),
+                start + normalized.length
+            );
+            input.value = result.text;
+            input.setSelectionRange(result.caret, result.caret);
+            error('Amount');
+        }
         function bind() {
             $('transactionForm').addEventListener('submit', save);
             field('Type').addEventListener('change', () => { error('Type'); categoryOptions(); });
             ['Title', 'Type', 'Amount', 'Category', 'Date'].forEach(name => {
                 const input = field(name);
+                if (name === 'Amount') {
+                    input.addEventListener('keydown', amountKeydown);
+                    input.addEventListener('paste', amountPaste);
+                }
                 input.addEventListener('input', () => {
                     if (name === 'Amount') {
-                        const caret = input.selectionStart;
-                        input.value = fmt().digits(input.value);
-                        if (caret !== null) input.setSelectionRange(caret, caret);
+                        const result = fmt().formatAmountInput(input.value, input.selectionStart);
+                        input.value = result.text;
+                        input.setSelectionRange(result.caret, result.caret);
                     }
                     error(name);
                 });

@@ -60,7 +60,7 @@
         state.editingId = String(tx.id);
         $('dashboardTransactionModalTitle').textContent = 'ویرایش تراکنش';
         $('dashboardTransactionTitle').value = tx.title || '';
-        $('dashboardTransactionAmount').value = w.PersianFormat.digits(tx.amount || '');
+        $('dashboardTransactionAmount').value = w.PersianFormat.groupDigits(tx.amount || '');
         $('dashboardTransactionDate').value = tx.transaction_date || '';
         $('dashboardTransactionDescription').value = tx.description || '';
         const category = state.categories.find(c => String(c.id) === String(tx.category_id));
@@ -198,16 +198,50 @@
             message.className = 'alert d-none mt-3'; message.textContent = '';
         });
     }
+    function amountKeydown(event) {
+        if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) return;
+        if (/^[0-9]$/.test(event.key)) return;
+        if (event.key === '.') {
+            const input = event.currentTarget;
+            const remaining = input.value.slice(0, input.selectionStart) + input.value.slice(input.selectionEnd);
+            const integerBeforeCursor = w.PersianFormat.normalizeInputNumber(input.value.slice(0, input.selectionStart)).split('.')[0];
+            if (!remaining.includes('.') && /[0-9]/.test(integerBeforeCursor)) return;
+        }
+        event.preventDefault();
+    }
+    function amountPaste(event) {
+        event.preventDefault();
+        const input = event.currentTarget;
+        const clipboard = event.clipboardData || w.clipboardData;
+        const pasted = clipboard ? clipboard.getData('text') : '';
+        const normalized = w.PersianFormat.normalizeInputNumber(pasted).trim();
+        if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) {
+            errorField('Amount', 'مبلغ کپی‌شده معتبر نیست؛ فقط عدد مثبت با حداکثر دو رقم اعشار وارد کنید.');
+            return;
+        }
+        const start = input.selectionStart, end = input.selectionEnd;
+        const result = w.PersianFormat.formatAmountInput(
+            input.value.slice(0, start) + normalized + input.value.slice(end),
+            start + normalized.length
+        );
+        input.value = result.text;
+        input.setSelectionRange(result.caret, result.caret);
+        errorField('Amount', '');
+    }
     function initialize(state, reload) {
         $('dashboardTransactionForm').addEventListener('submit', event => save(state, reload, event));
         $('dashboardTransactionType').addEventListener('change', () => categoriesForType(state));
         ['Title', 'Type', 'Category', 'Amount', 'Date'].forEach(suffix => {
             const field = $('dashboardTransaction' + suffix);
+            if (suffix === 'Amount') {
+                field.addEventListener('keydown', amountKeydown);
+                field.addEventListener('paste', amountPaste);
+            }
             field.addEventListener('input', () => {
                 if (suffix === 'Amount') {
-                    const caret = field.selectionStart;
-                    field.value = w.PersianFormat.digits(field.value);
-                    if (caret !== null) field.setSelectionRange(caret, caret);
+                    const result = w.PersianFormat.formatAmountInput(field.value, field.selectionStart);
+                    field.value = result.text;
+                    field.setSelectionRange(result.caret, result.caret);
                 }
                 errorField(suffix, '');
             });

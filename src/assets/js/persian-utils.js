@@ -196,6 +196,44 @@
             .replace(/\u066B/g, '.');
     }
 
+    // Format an amount string for INPUT display: three-digit grouping from the
+    // right, Persian digits, an optional leading minus and a single decimal
+    // point. Anything other than digits, one dot and a leading minus is dropped.
+    // Display-only: submit the value through normalizeInputNumber().
+    function groupDigits(value) {
+        if (value === null || value === undefined) return '';
+
+        const normalized = normalizeInputNumber(String(value)).replace(/[^0-9.-]/g, '');
+        const negative = normalized.charAt(0) === '-';
+        const unsigned = (negative ? normalized.slice(1) : normalized).replace(/-/g, '');
+        const dotIndex = unsigned.indexOf('.');
+        const integer = dotIndex === -1 ? unsigned : unsigned.slice(0, dotIndex);
+        const fraction = dotIndex === -1 ? '' : unsigned.slice(dotIndex + 1).replace(/\./g, '');
+        const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+        return (negative ? '-' : '') +
+            digits(grouped + (dotIndex === -1 ? '' : '.' + fraction));
+    }
+
+    // groupDigits() plus caret restoration: `caret` is the current offset in
+    // `value`, and the returned caret stays beside the same digit after
+    // thousands commas are inserted or removed. Returns { text, caret }.
+    function formatAmountInput(value, caret) {
+        const text = groupDigits(value);
+        const source = String(value === null || value === undefined ? '' : value);
+        const limit = typeof caret === 'number' ? caret : source.length;
+        const target = source.slice(0, limit).replace(/,/g, '').length;
+
+        let position = 0;
+        let seen = 0;
+        while (position < text.length && seen < target) {
+            if (text.charAt(position) !== ',') seen++;
+            position++;
+        }
+
+        return { text: text, caret: position };
+    }
+
     const PersianFormat = Object.freeze({
         digits: digits,
         number: number,
@@ -203,7 +241,9 @@
         percent: percent,
         date: date,
         dateTime: dateTime,
-        normalizeInputNumber: normalizeInputNumber
+        normalizeInputNumber: normalizeInputNumber,
+        groupDigits: groupDigits,
+        formatAmountInput: formatAmountInput
     });
 
     // Current CodeIgniter views: window.PersianFormat
