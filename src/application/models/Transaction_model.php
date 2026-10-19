@@ -29,10 +29,12 @@ class Transaction_model extends CI_Model
 
     public function find_active_transactions_by_category($user_id, $category_id)
     {
-        return $this->db->where('user_id', $user_id)
+        return $this->db
+            ->where('user_id', $user_id)
             ->where('category_id', $category_id)
             ->where('deleted_at', null)
-            ->get($this->table)->result();
+            ->get($this->table)
+            ->result();
     }
 
 
@@ -45,27 +47,26 @@ class Transaction_model extends CI_Model
     }
 
 
-    /**
-     * دریافت تراکنش‌های فعال کاربر.
-     *
-     * $limit:
-     * تعداد رکوردهای هر صفحه.
-     *
-     * $offset:
-     * تعداد رکوردهایی که باید رد شوند.
-     *
-     * اگر limit برابر null باشد، تمام نتایج مطابق رفتار قبلی برگردانده می‌شوند.
-     */
+
     public function find_active_transactions_by_user_id(
         $user_id,
         $limit = null,
-        $offset = 0
+        $offset = 0,
+        $filters = array()
     ) {
-        $this->db
-            ->where('user_id', $user_id)
-            ->where('deleted_at', null)
-            ->order_by('transaction_date', 'DESC')
-            ->order_by('id', 'DESC');
+        $this->apply_active_transaction_filters($user_id, $filters);
+
+        $sort = $filters['sort'] ?? 'newest';
+
+        if ($sort === 'oldest') {
+            $this->db
+                ->order_by('transactions.transaction_date', 'ASC')
+                ->order_by('transactions.id', 'ASC');
+        } else {
+            $this->db
+                ->order_by('transactions.transaction_date', 'DESC')
+                ->order_by('transactions.id', 'DESC');
+        }
 
         if ($limit !== null) {
             $limit = max(1, (int) $limit);
@@ -74,25 +75,21 @@ class Transaction_model extends CI_Model
             $this->db->limit($limit, $offset);
         }
 
-        return $this->db
-            ->get($this->table)
-            ->result();
+        return $this->db->get()->result();
     }
 
 
     /**
-     * شمارش کل تراکنش‌های فعال کاربر.
-     *
-     * برای محاسبه تعداد صفحات استفاده می‌شود.
+     * شمارش کل تراکنش‌های فعال کاربر مطابق فیلترها.
      */
-    public function count_active_transactions_by_user_id($user_id)
-    {
-        return $this->db
-            ->where('user_id', $user_id)
-            ->where('deleted_at', null)
-            ->count_all_results($this->table);
-    }
+    public function count_active_transactions_by_user_id(
+        $user_id,
+        $filters = array()
+    ) {
+        $this->apply_active_transaction_filters($user_id, $filters);
 
+        return $this->db->count_all_results();
+    }
 
 
     public function find_deleted_transactions_by_user_id(
@@ -130,7 +127,6 @@ class Transaction_model extends CI_Model
 
         return $this->db->get()->result();
     }
-
 
 
     public function count_deleted_transactions_by_user_id($user_id)
@@ -192,5 +188,64 @@ class Transaction_model extends CI_Model
             ));
 
         return $is_updated && $this->db->affected_rows() === 1;
+    }
+
+
+    private function apply_active_transaction_filters(
+        $user_id,
+        $filters = array()
+    ) {
+        $this->db
+            ->from($this->table)
+            ->join(
+                'categories',
+                'categories.id = transactions.category_id',
+                'left'
+            )
+            ->where('transactions.user_id', $user_id)
+            ->where('transactions.deleted_at', null);
+
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        if ($search !== '') {
+            $this->db
+                ->group_start()
+                    ->like('transactions.title', $search)
+                    ->or_like('transactions.description', $search)
+                ->group_end();
+        }
+
+        $type = $filters['type'] ?? 'all';
+
+        if (in_array($type, array('income', 'expense'), true)) {
+            $this->db->where('categories.type', $type);
+        }
+
+        $category_id = filter_var(
+            $filters['category_id'] ?? null,
+            FILTER_VALIDATE_INT,
+            array('options' => array('min_range' => 1))
+        );
+
+        if ($category_id !== false && $category_id !== null) {
+            $this->db->where('transactions.category_id', $category_id);
+        }
+
+        $date_from = $filters['date_from'] ?? '';
+        $date_to = $filters['date_to'] ?? '';
+
+        if ($date_from !== '') {
+            $this->db->where(
+                'transactions.transaction_date >=',
+                $date_from
+            );
+        }
+
+        if ($date_to !== '') {
+            $this->db->where(
+                'transactions.transaction_date <=',
+                $date_to
+            );
+        }
     }
 }

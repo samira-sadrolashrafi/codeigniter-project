@@ -1,4 +1,5 @@
 <?php
+
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 require_once APPPATH . 'services/Balance_service.php';
@@ -8,6 +9,7 @@ class Transaction_service
     protected $CI;
     private $balance_service;
     private $restore_days = 30;
+
 
     public function __construct()
     {
@@ -77,6 +79,7 @@ class Transaction_service
 
         return $event_id !== false;
     }
+
 
     private function validate_data($data)
     {
@@ -154,6 +157,7 @@ class Transaction_service
         );
     }
 
+
     public function create($user_id, $data)
     {
         $values = $this->validate_data($data);
@@ -186,7 +190,8 @@ class Transaction_service
 
         $id = $this->CI->Transaction_model->create($values);
 
-        if (!$id ||
+        if (
+            !$id ||
             !$this->balance_service->apply_transaction_effect(
                 $user_id,
                 $category->type,
@@ -209,6 +214,7 @@ class Transaction_service
         return $db->trans_commit() ? $id : false;
     }
 
+
     public function get($user_id, $transaction_id)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
@@ -224,29 +230,94 @@ class Transaction_service
         ) ? $transaction : false;
     }
 
+
     /**
-     * Get active transactions with optional server-side pagination.
-     *
-     * When $page is null, preserve the previous behavior and return
-     * all active transactions for compatibility with the current frontend.
+     * دریافت تراکنش‌های فعال همراه با فیلتر، مرتب‌سازی و صفحه‌بندی.
      */
-    public function get_all($user_id, $page = null, $per_page = 10)
-    {
+    public function get_all(
+        $user_id,
+        $page = null,
+        $per_page = 10,
+        $filters = array()
+    ) {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             return false;
         }
 
+        if (!is_array($filters)) {
+            return false;
+        }
+
+        $search = $filters['search'] ?? '';
+        $type = $filters['type'] ?? 'all';
+        $category_id = $filters['category_id'] ?? '';
+        $date_from = $filters['date_from'] ?? '';
+        $date_to = $filters['date_to'] ?? '';
+        $sort = $filters['sort'] ?? 'newest';
+
+        if (
+            !is_string($search) ||
+            !in_array($type, array('all', 'income', 'expense'), true) ||
+            !is_scalar($category_id) ||
+            !is_string($date_from) ||
+            !is_string($date_to) ||
+            !in_array($sort, array('newest', 'oldest'), true)
+        ) {
+            return false;
+        }
+
+        $search = trim($search);
+
+        $validate_date = function ($date) {
+            if ($date === '') {
+                return true;
+            }
+
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                return false;
+            }
+
+            $parsed = DateTime::createFromFormat('!Y-m-d', $date);
+
+            return $parsed && $parsed->format('Y-m-d') === $date;
+        };
+
+        if (
+            !$validate_date($date_from) ||
+            !$validate_date($date_to) ||
+            (
+                $date_from !== '' &&
+                $date_to !== '' &&
+                $date_from > $date_to
+            )
+        ) {
+            return false;
+        }
+
+        $filters = array(
+            'search' => $search,
+            'type' => $type,
+            'category_id' => $category_id,
+            'date_from' => $date_from,
+            'date_to' => $date_to,
+            'sort' => $sort
+        );
+
         $total = $this->CI->Transaction_model
-            ->count_active_transactions_by_user_id($user_id);
+            ->count_active_transactions_by_user_id($user_id, $filters);
 
         if ($total === false) {
             return false;
         }
 
         if ($page === null) {
-            // Preserve the previous behavior until the frontend sends page.
             $transactions = $this->CI->Transaction_model
-                ->find_active_transactions_by_user_id($user_id);
+                ->find_active_transactions_by_user_id(
+                    $user_id,
+                    null,
+                    0,
+                    $filters
+                );
 
             $current_page = 1;
             $effective_per_page = max(1, $total);
@@ -254,14 +325,14 @@ class Transaction_service
         } else {
             $page = max(1, (int) $page);
             $per_page = max(1, min(100, (int) $per_page));
-
             $offset = ($page - 1) * $per_page;
 
             $transactions = $this->CI->Transaction_model
                 ->find_active_transactions_by_user_id(
                     $user_id,
                     $per_page,
-                    $offset
+                    $offset,
+                    $filters
                 );
 
             $current_page = $page;
@@ -284,11 +355,9 @@ class Transaction_service
         );
     }
 
+
     /**
-     * Get deleted transactions with optional server-side pagination.
-     *
-     * When $page is null, preserve the previous behavior and return
-     * all deleted transactions for compatibility with the current frontend.
+     * دریافت تراکنش‌های حذف‌شده با صفحه‌بندی.
      */
     public function get_deleted($user_id, $page = null, $per_page = 10)
     {
@@ -313,7 +382,6 @@ class Transaction_service
         } else {
             $page = max(1, (int) $page);
             $per_page = max(1, min(100, (int) $per_page));
-
             $offset = ($page - 1) * $per_page;
 
             $transactions = $this->CI->Transaction_model
@@ -342,6 +410,7 @@ class Transaction_service
             )
         );
     }
+
 
     public function update($user_id, $transaction_id, $data)
     {
@@ -436,6 +505,7 @@ class Transaction_service
         return $db->trans_commit();
     }
 
+
     public function delete($user_id, $transaction_id)
     {
         $db = $this->CI->db;
@@ -505,6 +575,7 @@ class Transaction_service
 
         return $db->trans_commit();
     }
+
 
     public function restore($user_id, $transaction_id)
     {

@@ -1,4 +1,4 @@
-/** TARAZINO | Category tables, filters and server-side pagination. */
+/** TARAZINO | Category tables and server-side pagination. */
 (function (w, d) {
     'use strict';
 
@@ -10,7 +10,9 @@
             edit,
             askDelete,
             restore,
-            changePage
+            changePage,
+            applyFilters,
+            clearFilters
         } = ctx;
 
         const ids = kind => kind === 'active'
@@ -19,19 +21,24 @@
 
         function td(row, value, className = '') {
             const cell = row.insertCell();
+
             cell.textContent = value == null ? '' : value;
             cell.className = className;
+
             return cell;
         }
 
         function action(cell, text, actionName, id, color) {
             const button = d.createElement('button');
+
             button.type = 'button';
             button.className = 'btn btn-sm btn-outline-' + color + ' me-1';
             button.textContent = text;
             button.dataset.action = actionName;
             button.dataset.id = String(id);
+
             cell.appendChild(button);
+
             return button;
         }
 
@@ -48,10 +55,12 @@
             body.replaceChildren();
 
             const cell = body.insertRow().insertCell();
+
             cell.colSpan = kind === 'active' ? 4 : 5;
             cell.className =
                 'text-center py-5 ' +
                 (isError ? 'text-danger' : 'text-body-secondary');
+
             cell.textContent = text;
 
             if (hidePagination) {
@@ -60,32 +69,19 @@
 
             if (retry) {
                 const button = d.createElement('button');
+
                 button.type = 'button';
-                button.className =
-                    'btn btn-sm btn-outline-primary ms-2';
+                button.className = 'btn btn-sm btn-outline-primary ms-2';
                 button.textContent = 'تلاش دوباره';
                 button.addEventListener('click', retry);
+
                 cell.appendChild(button);
             }
         }
 
-        // فیلترهای فعلی حفظ شده‌اند و فعلاً روی صفحه دریافت‌شده اعمال می‌شوند.
-        function filtered() {
-            const query = $('categoriesSearch').value
-                .trim()
-                .toLocaleLowerCase('fa-IR');
-
-            const type = $('categoriesTypeFilter').value;
-
-            return s.active.filter(cat =>
-                (!query ||
-                    String(cat.name || '')
-                        .toLocaleLowerCase('fa-IR')
-                        .includes(query)) &&
-                (type === 'all' || cat.type === type)
-            );
-        }
-
+        /**
+         * صفحه‌بندی مبتنی بر اطلاعات برگشتی از API.
+         */
         function renderPagination(kind) {
             const [, prefix] = ids(kind);
             const pagination = s.pagination[kind];
@@ -177,7 +173,10 @@
             );
         }
 
-        // تنظیمات ظاهری دسته‌بندی‌ها؛ بدون ذخیره آیکون یا رنگ در دیتابیس.
+        /**
+         * تنظیمات ظاهری آیکون دسته‌بندی‌ها.
+         * این اطلاعات در دیتابیس ذخیره نمی‌شوند.
+         */
         function visual(category) {
             const name = String(category.name || '');
 
@@ -204,16 +203,22 @@
                     : ['fa-arrow-trend-down', 'text-danger'];
         }
 
+        /**
+         * نمایش دقیق نتایجی که سرور برگردانده است.
+         *
+         * فیلتر یا مرتب‌سازی محلی اینجا انجام نمی‌شود؛
+         * چون داده‌ها از قبل در بک‌اند فیلتر و مرتب شده‌اند.
+         */
         function render(kind) {
             const items = kind === 'active'
-                ? filtered()
+                ? s.active
                 : s.deleted;
 
             if (!items.length) {
                 empty(
                     kind,
                     kind === 'active'
-                        ? 'دسته‌بندی مطابق فیلتر پیدا نشد.'
+                        ? 'دسته‌بندی فعالی مطابق فیلترها وجود ندارد.'
                         : 'دسته‌بندی حذف‌شده‌ای وجود ندارد.',
                     false,
                     null,
@@ -225,28 +230,35 @@
             }
 
             const body = $(ids(kind)[0]);
+
             body.replaceChildren();
 
-            items.forEach(cat => {
+            items.forEach(category => {
                 const row = body.insertRow();
                 const name = row.insertCell();
                 const icon = d.createElement('i');
 
-                const [symbol, color] = visual(cat);
+                const [symbol, color] = visual(category);
 
                 icon.className =
                     'fa-solid ' + symbol + ' ' + color + ' me-2';
 
                 icon.setAttribute('aria-hidden', 'true');
 
-                name.append(icon, d.createTextNode(cat.name || '—'));
+                name.append(
+                    icon,
+                    d.createTextNode(category.name || '—')
+                );
 
-                td(row, cat.type === 'income' ? 'درآمد' : 'هزینه');
+                td(
+                    row,
+                    category.type === 'income' ? 'درآمد' : 'هزینه'
+                );
 
                 if (kind === 'active') {
                     td(
                         row,
-                        fmt().date(cat.created_at),
+                        fmt().date(category.created_at),
                         'text-nowrap'
                     );
 
@@ -256,7 +268,7 @@
                         controls,
                         'ویرایش',
                         'edit',
-                        cat.id,
+                        category.id,
                         'primary'
                     );
 
@@ -264,17 +276,17 @@
                         controls,
                         'حذف',
                         'delete',
-                        cat.id,
+                        category.id,
                         'danger'
                     );
                 } else {
                     td(
                         row,
-                        fmt().dateTime(cat.deleted_at),
+                        fmt().dateTime(category.deleted_at),
                         'text-nowrap'
                     );
 
-                    const allowed = cat.restore_available === true;
+                    const allowed = category.restore_available === true;
 
                     td(
                         row,
@@ -288,7 +300,7 @@
                         row.insertCell(),
                         'بازیابی',
                         'restore',
-                        cat.id,
+                        category.id,
                         'success'
                     ).disabled = !allowed || s.busy;
                 }
@@ -298,25 +310,28 @@
         }
 
         function bind() {
+            // عملیات جدول دسته‌بندی‌های فعال
             $('categoriesTableBody').addEventListener('click', event => {
                 const button = event.target.closest('button[data-action]');
+
                 if (!button) return;
 
-                const cat = s.active.find(
+                const category = s.active.find(
                     item => String(item.id) === button.dataset.id
                 );
 
-                if (!cat) return;
+                if (!category) return;
 
                 if (button.dataset.action === 'edit') {
-                    edit(cat);
+                    edit(category);
                 }
 
                 if (button.dataset.action === 'delete') {
-                    askDelete(cat);
+                    askDelete(category);
                 }
             });
 
+            // عملیات جدول دسته‌بندی‌های حذف‌شده
             $('deletedCategoriesTableBody').addEventListener(
                 'click',
                 event => {
@@ -330,30 +345,63 @@
                 }
             );
 
-            ['categoriesSearch', 'categoriesTypeFilter'].forEach(id => {
-                $(id).disabled = false;
+            // کنترل‌های فیلتر و مرتب‌سازی
+            const searchInput = $('categoriesSearch');
+            const typeInput = $('categoriesTypeFilter');
+            const sortInput = $('categoriesSortFilter');
 
-                $(id).addEventListener(
-                    id === 'categoriesSearch' ? 'input' : 'change',
-                    () => {
-                        // با تغییر فیلتر، به صفحه اول برمی‌گردیم.
-                        changePage('active', 1);
-                        render('active');
-                    }
-                );
-            });
+            if (searchInput) {
+                searchInput.disabled = false;
+            }
 
+            if (typeInput) {
+                typeInput.disabled = false;
+            }
+
+            if (sortInput) {
+                sortInput.disabled = false;
+            }
+
+            // تغییر ورودی‌ها صرفاً مقادیر فرم را تغییر می‌دهد.
+            // درخواست جدید تنها با دکمه اعمال فیلترها ارسال می‌شود.
+            const applyButton = $('applyCategoriesFiltersButton');
+
+            if (applyButton) {
+                applyButton.addEventListener('click', () => {
+                    applyFilters();
+                });
+            }
+
+            const clearButton = $('clearCategoriesFiltersButton');
+
+            if (clearButton) {
+                clearButton.addEventListener('click', () => {
+                    clearFilters();
+                });
+            }
+
+            // حفظ پیام راهنما و نشان موجود در صفحه
             const badge = d.querySelector(
                 '[data-component="category-filters"] .badge'
             );
 
-            if (badge) badge.textContent = 'فعال';
+            if (badge) {
+                badge.textContent = 'فعال';
+            }
 
-            $('categoriesFiltersNote').textContent =
-                'جست‌وجو و فیلتر فعلاً روی دسته‌بندی‌های صفحه دریافت‌شده انجام می‌شوند.';
+            const note = $('categoriesFiltersNote');
+
+            if (note) {
+                note.textContent =
+                    'برای اجرای فیلترها، روی «اعمال فیلترها» کلیک کنید.';
+            }
         }
 
-        return { bind, render, empty };
+        return {
+            bind,
+            render,
+            empty
+        };
     }
 
     w.TarazinoCategoryList = Object.freeze({ create });

@@ -108,6 +108,7 @@ $route['api/categories/(:num)/restore']['post'] = 'category_api/restore/$1';
 
 // Transaction API
 $route['api/transactions/deleted']['get'] = 'transaction_api/deleted';
+
 $route['api/transactions']['get'] = 'transaction_api/index';
 
 $route['api/transactions']['post'] = 'transaction_api/store';

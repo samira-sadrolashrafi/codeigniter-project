@@ -20,6 +20,15 @@
             deleted: null
         },
 
+        filters: {
+            search: '',
+            type: 'all',
+            category_id: 'all',
+            date_from: '',
+            date_to: '',
+            sort: 'newest'
+        },
+
         categoriesLoaded: false,
         deletedLoaded: false,
         loadingDeleted: false,
@@ -38,7 +47,8 @@
         deletingId: null
     };
 
-    let form, list;
+    let form;
+    let list;
 
     function notice(id, text, type = 'danger') {
         const element = $(id);
@@ -48,39 +58,65 @@
         }
 
         element.textContent = text || '';
-        element.className = text ? 'alert alert-' + type : 'alert d-none';
+        element.className = text
+            ? 'alert alert-' + type
+            : 'alert d-none';
     }
 
     function categoryOf(tx) {
         return s.categories.find(
-            category => String(category.id) === String(tx.category_id)
+            category =>
+                String(category.id) === String(tx.category_id)
         );
     }
 
     /**
-     * Build the URL for one server-side page.
-     *
-     * Example:
-     * /api/transactions?page=2&per_page=10
+     * Build a URL using the current page and applied filters.
+     * "all" means no filter and must not be sent as an actual filter value.
      */
-    function pageUrl(url, page) {
-        const currentPage = Math.max(1, Number(page) || 1);
+    function pageUrl(url, page, filters = null) {
+        const params = new URLSearchParams();
 
-        return url +
-            '?page=' + encodeURIComponent(currentPage) +
-            '&per_page=' + PAGE_SIZE;
+        params.set(
+            'page',
+            String(Math.max(1, Number(page) || 1))
+        );
+
+        params.set('per_page', String(PAGE_SIZE));
+
+        if (filters) {
+            Object.entries(filters).forEach(([key, value]) => {
+                if (
+                    value === '' ||
+                    value === null ||
+                    value === undefined
+                ) {
+                    return;
+                }
+
+                if (
+                    (key === 'type' || key === 'category_id') &&
+                    value === 'all'
+                ) {
+                    return;
+                }
+
+                params.set(key, String(value));
+            });
+        }
+
+        return url + '?' + params.toString();
     }
 
-    /**
-     * Request one page and handle the case where the requested page
-     * no longer exists, for example after deleting the last item on it.
-     */
-    async function getPage(url, page) {
-        let requestedPage = Math.max(1, Number(page) || 1);
+    async function getPage(url, page, filters = null) {
+        let requestedPage = Math.max(
+            1,
+            Number(page) || 1
+        );
 
         async function requestPage(pageNumber) {
             const response = await api().get(
-                pageUrl(url, pageNumber)
+                pageUrl(url, pageNumber, filters)
             );
 
             if (
@@ -99,7 +135,9 @@
 
         let response = await requestPage(requestedPage);
 
-        const totalPages = Number(response.pagination.total_pages);
+        const totalPages = Number(
+            response.pagination.total_pages
+        );
 
         if (!Number.isFinite(totalPages) || totalPages < 0) {
             throw new Error(
@@ -111,11 +149,61 @@
 
         if (requestedPage > lastAvailablePage) {
             requestedPage = lastAvailablePage;
-
             response = await requestPage(requestedPage);
         }
 
         return response;
+    }
+
+    /**
+     * Read the filters currently selected in the form.
+     */
+    function readFilters() {
+        return {
+            search: $('transactionSearch').value.trim(),
+            type: $('transactionTypeFilter').value,
+            category_id: $('transactionCategoryFilter').value,
+            date_from: $('transactionDateFrom').value,
+            date_to: $('transactionDateTo').value,
+            sort: $('transactionSort').value
+        };
+    }
+
+    /**
+     * Apply filters only after the user clicks the Apply button.
+     */
+    async function applyFilters() {
+        s.filters = readFilters();
+        s.page.active = 1;
+
+        await loadActive();
+    }
+
+    /**
+     * Reset all filters and return to the first page.
+     */
+    async function clearFilters() {
+        $('transactionSearch').value = '';
+        $('transactionTypeFilter').value = 'all';
+        $('transactionCategoryFilter').value = 'all';
+        $('transactionDateFrom').value = '';
+        $('transactionDateTo').value = '';
+        $('transactionSort').value = 'newest';
+
+        s.filters = {
+            search: '',
+            type: 'all',
+            category_id: 'all',
+            date_from: '',
+            date_to: '',
+            sort: 'newest'
+        };
+
+        s.page.active = 1;
+
+        list.categories();
+
+        await loadActive();
     }
 
     async function reloadActive(requestId = null) {
@@ -126,11 +214,11 @@
         const requestedPage = s.page.active;
 
         const [transactions, categories] = await Promise.all([
-            getPage(s.url, requestedPage),
+            getPage(s.url, requestedPage, s.filters),
             api().get(s.categoryUrl)
         ]);
 
-        // Ignore an older response if a newer page was requested.
+        // Ignore responses from outdated requests.
         if (currentRequestId !== s.requests.active) {
             return;
         }
@@ -161,7 +249,10 @@
     async function loadActive() {
         const requestId = ++s.requests.active;
 
-        list.empty('active', 'در حال دریافت تراکنش‌ها...');
+        list.empty(
+            'active',
+            'در حال دریافت تراکنش‌ها...'
+        );
 
         try {
             await reloadActive(requestId);
@@ -182,7 +273,8 @@
 
             notice(
                 'transactionsMessage',
-                error.message + ' برای تلاش دوباره صفحه را تازه‌سازی کنید.'
+                error.message +
+                ' برای تلاش دوباره صفحه را تازه‌سازی کنید.'
             );
         }
     }
@@ -219,10 +311,12 @@
                 Number(response.pagination.current_page) || 1
             );
 
-
             s.deletedLoaded = true;
 
-            list.render('deleted', s.pagination.deleted);
+            list.render(
+                'deleted',
+                s.pagination.deleted
+            );
         } catch (error) {
             if (requestId !== s.requests.deleted) {
                 return;
@@ -230,9 +324,16 @@
 
             s.deletedLoaded = false;
 
-            list.empty('deleted', error.message, true);
+            list.empty(
+                'deleted',
+                error.message,
+                true
+            );
 
-            notice('transactionsMessage', error.message);
+            notice(
+                'transactionsMessage',
+                error.message
+            );
 
             throw error;
         } finally {
@@ -243,22 +344,21 @@
     }
 
     /**
-     * Called by the existing pagination controls.
-     * The table's visual structure remains unchanged.
+     * Load another page while keeping the currently applied filters.
      */
     function changePage(kind, page) {
         if (s.busy) {
             return;
         }
 
-        if (
-            kind !== 'active' &&
-            kind !== 'deleted'
-        ) {
+        if (kind !== 'active' && kind !== 'deleted') {
             return;
         }
 
-        s.page[kind] = Math.max(1, Number(page) || 1);
+        s.page[kind] = Math.max(
+            1,
+            Number(page) || 1
+        );
 
         if (kind === 'active') {
             loadActive();
@@ -270,12 +370,15 @@
     function askDelete(tx) {
         s.deletingId = String(tx.id);
 
-        $('deleteTransactionTitle').textContent = tx.title || '';
+        $('deleteTransactionTitle').textContent =
+            tx.title || '';
 
         notice('deleteTransactionMessage', '');
 
         w.bootstrap.Modal
-            .getOrCreateInstance($('deleteTransactionModal'))
+            .getOrCreateInstance(
+                $('deleteTransactionModal')
+            )
             .show();
     }
 
@@ -284,7 +387,9 @@
             return;
         }
 
-        const button = $('confirmDeleteTransactionButton');
+        const button = $(
+            'confirmDeleteTransactionButton'
+        );
 
         s.busy = true;
         button.disabled = true;
@@ -297,7 +402,9 @@
             );
 
             w.bootstrap.Modal
-                .getOrCreateInstance($('deleteTransactionModal'))
+                .getOrCreateInstance(
+                    $('deleteTransactionModal')
+                )
                 .hide();
 
             notice(
@@ -308,19 +415,23 @@
 
             s.deletedLoaded = false;
 
-            try {
-                // Keep the current page if it still exists.
-                // reloadActive() handles an out-of-range page.
-                await reloadActive();
-            } catch (error) {
+            const refreshes = await Promise.allSettled([
+                reloadActive(),
+                loadDeleted()
+            ]);
+
+            if (refreshes.some(item => item.status === 'rejected')) {
                 notice(
                     'transactionsMessage',
-                    'حذف شد؛ اما فهرست به‌روز نشد: ' + error.message,
+                    'حذف شد؛ اما یکی از فهرست‌ها به‌روز نشد.',
                     'warning'
                 );
             }
         } catch (error) {
-            notice('deleteTransactionMessage', error.message);
+            notice(
+                'deleteTransactionMessage',
+                error.message
+            );
         } finally {
             s.busy = false;
             s.deletingId = null;
@@ -362,7 +473,9 @@
             ]);
 
             if (
-                updates.some(item => item.status === 'rejected')
+                updates.some(
+                    item => item.status === 'rejected'
+                )
             ) {
                 notice(
                     'transactionsMessage',
@@ -371,12 +484,18 @@
                 );
             }
         } catch (error) {
-            notice('transactionsMessage', error.message);
+            notice(
+                'transactionsMessage',
+                error.message
+            );
         } finally {
             s.busy = false;
 
             if (s.deletedLoaded) {
-                list.render('deleted', s.pagination.deleted);
+                list.render(
+                    'deleted',
+                    s.pagination.deleted
+                );
             }
         }
     }
@@ -393,12 +512,16 @@
 
         $('showActiveTransactionsButton').className =
             'btn ' + (
-                deleted ? 'btn-outline-primary' : 'btn-primary'
+                deleted
+                    ? 'btn-outline-primary'
+                    : 'btn-primary'
             );
 
         $('showDeletedTransactionsButton').className =
             'btn ' + (
-                deleted ? 'btn-primary' : 'btn-outline-primary'
+                deleted
+                    ? 'btn-primary'
+                    : 'btn-outline-primary'
             );
 
         $('showActiveTransactionsButton').setAttribute(
@@ -438,8 +561,11 @@
             return;
         }
 
-        s.url = page.dataset.transactionsApiUrl.replace(/\/$/, '');
-        s.categoryUrl = page.dataset.categoriesApiUrl.replace(/\/$/, '');
+        s.url = page.dataset.transactionsApiUrl
+            .replace(/\/$/, '');
+
+        s.categoryUrl = page.dataset.categoriesApiUrl
+            .replace(/\/$/, '');
 
         const ctx = {
             s,
@@ -461,37 +587,72 @@
         form.bind();
         list.bind();
 
-        $('addTransactionButton').addEventListener('click', () => {
-            if (!s.categoriesLoaded) {
-                notice(
-                    'transactionsMessage',
-                    'دسته‌بندی‌ها هنوز دریافت نشده‌اند.'
-                );
-            } else {
-                form.open();
+        $('addTransactionButton').addEventListener(
+            'click',
+            () => {
+                if (!s.categoriesLoaded) {
+                    notice(
+                        'transactionsMessage',
+                        'دسته‌بندی‌ها هنوز دریافت نشده‌اند.'
+                    );
+                } else {
+                    form.open();
+                }
             }
-        });
+        );
 
         $('confirmDeleteTransactionButton')
             .addEventListener('click', remove);
 
         $('showActiveTransactionsButton')
-            .addEventListener('click', () => switchTab(false));
+            .addEventListener(
+                'click',
+                () => switchTab(false)
+            );
 
         $('showDeletedTransactionsButton')
-            .addEventListener('click', () => switchTab(true));
+            .addEventListener(
+                'click',
+                () => switchTab(true)
+            );
 
         $('deleteTransactionModal').addEventListener(
             'hidden.bs.modal',
             () => notice('deleteTransactionMessage', '')
         );
 
+        const applyButton = $(
+            'applyTransactionFiltersButton'
+        );
+
+        const clearButton = $(
+            'clearTransactionFiltersButton'
+        );
+
+        if (applyButton) {
+            applyButton.addEventListener(
+                'click',
+                applyFilters
+            );
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener(
+                'click',
+                clearFilters
+            );
+        }
+
         switchTab(false);
         loadActive();
     }
 
     if (d.readyState === 'loading') {
-        d.addEventListener('DOMContentLoaded', initialize, { once: true });
+        d.addEventListener(
+            'DOMContentLoaded',
+            initialize,
+            { once: true }
+        );
     } else {
         initialize();
     }

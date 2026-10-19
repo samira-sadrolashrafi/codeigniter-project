@@ -53,15 +53,28 @@ class Transaction_api extends BaseApiController
         );
     }
 
+    private function get_filter_params()
+    {
+        return array(
+            'search' => $this->input->get('search') ?? '',
+            'type' => $this->input->get('type') ?? 'all',
+            'category_id' => $this->input->get('category_id') ?? '',
+            'date_from' => $this->input->get('date_from') ?? '',
+            'date_to' => $this->input->get('date_to') ?? '',
+            'sort' => $this->input->get('sort') ?? 'newest'
+        );
+    }
 
     public function index()
     {
         $pagination = $this->get_pagination_params();
+        $filters = $this->get_filter_params();
 
         $result = $this->transaction_service->get_all(
             $this->current_user_id(),
             $pagination['page'],
-            $pagination['per_page']
+            $pagination['per_page'],
+            $filters
         );
 
         if ($result === false) {
@@ -79,7 +92,6 @@ class Transaction_api extends BaseApiController
             $result
         );
     }
-
 
     public function deleted()
     {
@@ -112,7 +124,6 @@ class Transaction_api extends BaseApiController
             $result
         );
     }
-
 
     public function store()
     {
@@ -147,7 +158,6 @@ class Transaction_api extends BaseApiController
         );
     }
 
-
     public function update($transaction_id)
     {
         $data = array(
@@ -176,7 +186,6 @@ class Transaction_api extends BaseApiController
         );
     }
 
-
     public function delete($transaction_id)
     {
         if (!$this->transaction_service->delete(
@@ -195,7 +204,6 @@ class Transaction_api extends BaseApiController
             'تراکنش با موفقیت حذف شد.'
         );
     }
-
 
     public function restore($transaction_id)
     {
