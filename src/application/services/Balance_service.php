@@ -14,6 +14,45 @@ class Balance_service
         $this->CI->load->model('Balance_history_model');
     }
 
+    /**
+     * پیام دقیق نامعتبر بودن مبلغ، یا null وقتی مبلغ سالم است.
+     *
+     * Transaction_service و Dashboard_api از همین متد استفاده می‌کنند تا
+     * دلیل نامعتبر بودن مبلغ (فرمت، صفر بودن یا بزرگ بودن) روشن شود.
+     * قوانین آن دقیقاً همان قوانین normalize_amount است.
+     */
+    public function amount_error($amount, $allow_negative = false)
+    {
+        if (!is_string($amount) && !is_int($amount)) {
+            return 'مبلغ نامعتبر است.';
+        }
+
+        $value = trim((string) $amount);
+
+        $pattern = $allow_negative
+            ? '/^-?[0-9]+(?:\.[0-9]{1,2})?$/'
+            : '/^[0-9]+(?:\.[0-9]{1,2})?$/';
+
+        if (!preg_match($pattern, $value)) {
+            return 'فرمت مبلغ نامعتبر است؛ فقط عدد با حداکثر دو رقم اعشار وارد کنید.';
+        }
+
+        $unsigned = ($value[0] === '-') ? substr($value, 1) : $value;
+
+        $integer = ltrim(explode('.', $unsigned, 2)[0], '0');
+
+        if (strlen($integer === '' ? '0' : $integer) > 13) {
+            return 'مبلغ واردشده بیش از حد مجاز است.';
+        }
+
+        // بدون مجوز منفی، مبلغ صفر پذیرفته نمی‌شود.
+        if (!$allow_negative && !preg_match('/[1-9]/', $unsigned)) {
+            return 'مبلغ تراکنش نمی‌تواند صفر باشد.';
+        }
+
+        return null;
+    }
+
     // Return a normalized DECIMAL(15,2) string, or false.
     public function normalize_amount($amount, $allow_negative = false)
     {

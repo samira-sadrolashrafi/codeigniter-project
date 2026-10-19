@@ -8,6 +8,7 @@ class Category_service
     protected $CI;
     private $balance_service;
     private $restore_days = 30;
+    private $last_error = array();
 
     public function __construct()
     {
@@ -20,15 +21,58 @@ class Category_service
         $this->balance_service = new Balance_service();
     }
 
+    /**
+     * آخرین علت شکست عملیات به شکل array('message' => ..., 'status' => ...).
+     *
+     * کنترلر با همین اطلاعات، پیام مشخص و متناسب با علت واقعی
+     * را به کاربر برمی‌گرداند.
+     */
+    public function get_last_error()
+    {
+        return $this->last_error;
+    }
+
+    /**
+     * ثبت علت شکست عملیات و برگرداندن false.
+     *
+     * برای خطاهای غیرمنتظره (۵xx) جزئیات فنی فقط در لاگ سرور ثبت
+     * می‌شود و کاربر پیام عمومی محترمانه دریافت می‌کند.
+     */
+    private function fail($message, $status, $log_context = null)
+    {
+        if ($status >= 500 && $log_context !== null) {
+            log_message('error', 'Category_service: ' . $log_context);
+        }
+
+        $this->last_error = array(
+            'message' => $message,
+            'status' => $status
+        );
+
+        return false;
+    }
+
     public function create($user_id, $data)
     {
-        if (
-            !is_array($data) ||
-            !isset($data['name'], $data['type']) ||
-            !$this->valid_name($data['name']) ||
-            !in_array($data['type'], array('income', 'expense'), true)
-        ) {
-            return false;
+        if (!is_array($data) || !isset($data['name'], $data['type'])) {
+            return $this->fail(
+                'نام و نوع دسته‌بندی الزامی است.',
+                422
+            );
+        }
+
+        if (!$this->valid_name($data['name'])) {
+            return $this->fail(
+                'نام دسته‌بندی باید بین ۱ تا ۱۰۰ نویسه باشد.',
+                422
+            );
+        }
+
+        if (!in_array($data['type'], array('income', 'expense'), true)) {
+            return $this->fail(
+                'نوع دسته‌بندی باید «درآمد» یا «هزینه» باشد.',
+                422
+            );
         }
 
         $name = trim($data['name']);
@@ -36,12 +80,20 @@ class Category_service
 
         $db->trans_begin();
 
-        if (
-            !$this->CI->User_model->find_active_by_id($user_id) ||
-            $this->check_duplicate_name($user_id, $name)
-        ) {
+        if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
+        }
+
+        if ($this->check_duplicate_name($user_id, $name)) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این نام قبلاً برای دسته‌بندی دیگری استفاده شده است. لطفاً نام دیگری انتخاب کنید.',
+                422
+            );
         }
 
         $id = $this->CI->Category_model->create(array(
@@ -53,30 +105,60 @@ class Category_service
 
         if (!$id || $db->trans_status() === false) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'ایجاد دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'create failed for user ' . $user_id
+            );
         }
 
-        return $db->trans_commit() ? $id : false;
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'ایجاد دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed for user ' . $user_id
+            );
+        }
+
+        return $id;
     }
 
     public function get($user_id, $category_id)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $category = $this->CI->Category_model
             ->find_category_by_id($user_id, $category_id);
 
-        return ($category && $category->deleted_at === null)
-            ? $category
-            : false;
+        if (!$category) {
+            return $this->fail(
+                'دسته‌بندی موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if ($category->deleted_at !== null) {
+            return $this->fail(
+                'این دسته‌بندی حذف شده است و در فهرست فعال نیست.',
+                404
+            );
+        }
+
+        return $category;
     }
 
     public function get_all($user_id)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         return $this->CI->Category_model
@@ -86,7 +168,10 @@ class Category_service
     public function get_deleted($user_id)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         return $this->CI->Category_model
@@ -104,7 +189,10 @@ class Category_service
         $filters = array()
     ) {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         // اعتبارسنجی و اصلاح شماره صفحه و تعداد نتایج هر صفحه
@@ -182,7 +270,10 @@ class Category_service
     public function get_deleted_paginated($user_id, $page, $per_page)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $page = max(1, (int) $page);
@@ -214,14 +305,20 @@ class Category_service
     public function update($user_id, $category_id, $data)
     {
         if (!is_array($data)) {
-            return false;
+            return $this->fail(
+                'داده‌های ارسالی نامعتبر است.',
+                422
+            );
         }
 
         if (
             !array_key_exists('name', $data) &&
             !array_key_exists('type', $data)
         ) {
-            return false;
+            return $this->fail(
+                'نام یا نوع دسته‌بندی برای ویرایش ارسال نشده است.',
+                422
+            );
         }
 
         $db = $this->CI->db;
@@ -230,15 +327,29 @@ class Category_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $category = $this->CI->Category_model
             ->find_category_by_id($user_id, $category_id);
 
-        if (!$category || $category->deleted_at !== null) {
+        if (!$category) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'دسته‌بندی موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if ($category->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این دسته‌بندی حذف شده است و قابل ویرایش نیست.',
+                404
+            );
         }
 
         $changes = array();
@@ -249,7 +360,10 @@ class Category_service
             // to avoid a TypeError for non-string values.
             if (!$this->valid_name($data['name'])) {
                 $db->trans_rollback();
-                return false;
+                return $this->fail(
+                    'نام دسته‌بندی باید بین ۱ تا ۱۰۰ نویسه باشد.',
+                    422
+                );
             }
 
             $new_name = trim($data['name']);
@@ -262,7 +376,10 @@ class Category_service
                 )
             ) {
                 $db->trans_rollback();
-                return false;
+                return $this->fail(
+                    'این نام قبلاً برای دسته‌بندی دیگری استفاده شده است. لطفاً نام دیگری انتخاب کنید.',
+                    422
+                );
             }
 
             $changes['name'] = $new_name;
@@ -274,7 +391,10 @@ class Category_service
 
             if (!in_array($new_type, array('income', 'expense'), true)) {
                 $db->trans_rollback();
-                return false;
+                return $this->fail(
+                    'نوع دسته‌بندی باید «درآمد» یا «هزینه» باشد.',
+                    422
+                );
             }
 
             // اگر تراکنشی به دسته‌بندی مرتبط باشد،
@@ -285,7 +405,10 @@ class Category_service
                     ->has_transactions_by_category($user_id, $category_id)
             ) {
                 $db->trans_rollback();
-                return false;
+                return $this->fail(
+                    'تا زمانی که تراکنشی به این دسته‌بندی ثبت شده باشد، نمی‌توانید نوع آن را تغییر دهید.',
+                    422
+                );
             }
 
             $changes['type'] = $new_type;
@@ -304,10 +427,24 @@ class Category_service
 
         if (!$updated || $db->trans_status() === false) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'ویرایش دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'update failed for category ' . $category_id
+                    . ' of user ' . $user_id
+            );
         }
 
-        return $db->trans_commit();
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'ویرایش دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed for category ' . $category_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        return true;
     }
 
     public function delete($user_id, $category_id)
@@ -318,15 +455,29 @@ class Category_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $category = $this->CI->Category_model
             ->find_category_by_id($user_id, $category_id);
 
-        if (!$category || $category->deleted_at !== null) {
+        if (!$category) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'دسته‌بندی موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if ($category->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این دسته‌بندی قبلاً حذف شده است.',
+                404
+            );
         }
 
         $now = date('Y-m-d H:i:s');
@@ -367,7 +518,12 @@ class Category_service
                 )
             ) {
                 $db->trans_rollback();
-                return false;
+                return $this->fail(
+                    'حذف دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                    500,
+                    'transaction rollback failed while deleting category '
+                        . $category_id . ' of user ' . $user_id
+                );
             }
         }
 
@@ -377,14 +533,35 @@ class Category_service
                 $category_id,
                 $now,
                 $until
-            ) ||
-            $db->trans_status() === false
+            )
         ) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حذف دسته‌بندی انجام نشد؛ این دسته‌بندی ممکن است هم‌اکنون حذف شده باشد. فهرست را تازه‌سازی کنید.',
+                404
+            );
         }
 
-        return $db->trans_commit();
+        if ($db->trans_status() === false) {
+            $db->trans_rollback();
+            return $this->fail(
+                'حذف دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'db error while deleting category ' . $category_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'حذف دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed while deleting category ' . $category_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        return true;
     }
 
     public function restore($user_id, $category_id)
@@ -395,17 +572,48 @@ class Category_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $category = $this->CI->Category_model
             ->find_category_by_id($user_id, $category_id);
 
+        if (!$category) {
+            $db->trans_rollback();
+            return $this->fail(
+                'دسته‌بندی موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if (!$category->deleted_at) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این دسته‌بندی حذف نشده است و نیازی به بازیابی ندارد.',
+                404
+            );
+        }
+
+        if (!$category->restore_until) {
+            $db->trans_rollback();
+            return $this->fail(
+                'برای این دسته‌بندی مهلت بازیابی ثبت نشده و قابل بازیابی نیست.',
+                404
+            );
+        }
+
+        if (strtotime($category->restore_until) <= time()) {
+            $db->trans_rollback();
+            return $this->fail(
+                'مهلت بازیابی این دسته‌بندی به پایان رسیده است.',
+                404
+            );
+        }
+
         if (
-            !$category ||
-            !$category->deleted_at ||
-            !$category->restore_until ||
-            strtotime($category->restore_until) <= time() ||
             $this->check_duplicate_name(
                 $user_id,
                 $category->name,
@@ -413,18 +621,43 @@ class Category_service
             )
         ) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'اکنون دسته‌بندی دیگری (فعال یا در مهلت بازیابی) با همین نام وجود دارد. ابتدا نام آن دسته‌بندی را تغییر دهید.',
+                422
+            );
         }
 
         $querysuccess = $this->CI->Category_model
             ->restore_category_by_user($user_id, $category_id);
 
-        if (!$querysuccess || $db->trans_status() === false) {
+        if (!$querysuccess) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'بازگردانی دسته‌بندی انجام نشد؛ ممکن است قبلاً بازیابی شده باشد. فهرست را تازه‌سازی کنید.',
+                404
+            );
         }
 
-        return $db->trans_commit();
+        if ($db->trans_status() === false) {
+            $db->trans_rollback();
+            return $this->fail(
+                'بازگردانی دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'db error while restoring category ' . $category_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'بازگردانی دسته‌بندی انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed while restoring category ' . $category_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        return true;
     }
 
     private function valid_name($name)

@@ -49,10 +49,9 @@ class Category_api extends BaseApiController
             );
 
             if ($categories === false) {
-                return $this->respond_json(
-                    false,
-                    'دریافت دسته‌بندی‌ها انجام نشد.',
-                    422
+                return $this->respond_service_error(
+                    $this->category_service,
+                    'دریافت دسته‌بندی‌ها انجام نشد؛ لطفاً دوباره تلاش کنید.'
                 );
             }
 
@@ -93,10 +92,9 @@ class Category_api extends BaseApiController
         );
 
         if ($result === false) {
-            return $this->respond_json(
-                false,
-                'دریافت دسته‌بندی‌ها انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->category_service,
+                'دریافت دسته‌بندی‌ها انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -129,10 +127,9 @@ class Category_api extends BaseApiController
             );
 
             if ($categories === false) {
-                return $this->respond_json(
-                    false,
-                    'دریافت دسته‌بندی‌های حذف‌شده انجام نشد.',
-                    422
+                return $this->respond_service_error(
+                    $this->category_service,
+                    'دریافت دسته‌بندی‌های حذف‌شده انجام نشد؛ لطفاً دوباره تلاش کنید.'
                 );
             }
 
@@ -168,10 +165,9 @@ class Category_api extends BaseApiController
         );
 
         if ($result === false) {
-            return $this->respond_json(
-                false,
-                'دریافت دسته‌بندی‌های حذف‌شده انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->category_service,
+                'دریافت دسته‌بندی‌های حذف‌شده انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -209,10 +205,9 @@ class Category_api extends BaseApiController
         );
 
         if ($category_id === false) {
-            return $this->respond_json(
-                false,
-                'ایجاد دسته‌بندی انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->category_service,
+                'ایجاد دسته‌بندی انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -242,10 +237,9 @@ class Category_api extends BaseApiController
             $category_id,
             $data
         )) {
-            return $this->respond_json(
-                false,
-                'ویرایش دسته‌بندی انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->category_service,
+                'ویرایش دسته‌بندی انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -268,10 +262,9 @@ class Category_api extends BaseApiController
             $this->user_id,
             $category_id
         )) {
-            return $this->respond_json(
-                false,
-                'حذف دسته‌بندی انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->category_service,
+                'حذف دسته‌بندی انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 
@@ -294,10 +287,9 @@ class Category_api extends BaseApiController
             $this->user_id,
             $category_id
         )) {
-            return $this->respond_json(
-                false,
-                'بازگردانی دسته‌بندی انجام نشد.',
-                422
+            return $this->respond_service_error(
+                $this->category_service,
+                'بازگردانی دسته‌بندی انجام نشد؛ لطفاً دوباره تلاش کنید.'
             );
         }
 

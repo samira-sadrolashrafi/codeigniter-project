@@ -9,6 +9,7 @@ class Transaction_service
     protected $CI;
     private $balance_service;
     private $restore_days = 30;
+    private $last_error = array();
 
 
     public function __construct()
@@ -21,6 +22,38 @@ class Transaction_service
         $this->CI->load->model('Balance_history_model');
 
         $this->balance_service = new Balance_service();
+    }
+
+
+    /**
+     * آخرین علت شکست عملیات به شکل array('message' => ..., 'status' => ...).
+     *
+     * کنترلر با همین اطلاعات، پیام مشخص و متناسب با علت واقعی
+     * را به کاربر برمی‌گرداند.
+     */
+    public function get_last_error()
+    {
+        return $this->last_error;
+    }
+
+    /**
+     * ثبت علت شکست عملیات و برگرداندن false.
+     *
+     * برای خطاهای غیرمنتظره (۵xx) جزئیات فنی فقط در لاگ سرور ثبت
+     * می‌شود و کاربر پیام عمومی محترمانه دریافت می‌کند.
+     */
+    private function fail($message, $status, $log_context = null)
+    {
+        if ($status >= 500 && $log_context !== null) {
+            log_message('error', 'Transaction_service: ' . $log_context);
+        }
+
+        $this->last_error = array(
+            'message' => $message,
+            'status' => $status
+        );
+
+        return false;
     }
 
 
@@ -50,21 +83,35 @@ class Transaction_service
 
     private function validate_data($data)
     {
+        if (!is_array($data)) {
+            return $this->fail(
+                'داده‌های ارسالی نامعتبر است.',
+                422
+            );
+        }
+
+        if (!isset($data['title'], $data['amount'], $data['category_id'], $data['transaction_date'])) {
+            return $this->fail(
+                'عنوان، مبلغ، دسته‌بندی و تاریخ تراکنش الزامی است.',
+                422
+            );
+        }
+
+        if (!is_string($data['title'])) {
+            return $this->fail(
+                'عنوان تراکنش نامعتبر است.',
+                422
+            );
+        }
+
         if (
-            !is_array($data) ||
-            !isset(
-                $data['title'],
-                $data['amount'],
-                $data['category_id'],
-                $data['transaction_date']
-            ) ||
-            !is_string($data['title']) ||
-            (
-                !is_string($data['category_id']) &&
-                !is_int($data['category_id'])
-            )
+            !is_string($data['category_id']) &&
+            !is_int($data['category_id'])
         ) {
-            return false;
+            return $this->fail(
+                'شناسه دسته‌بندی نامعتبر است.',
+                422
+            );
         }
 
         $title = trim($data['title']);
@@ -75,26 +122,50 @@ class Transaction_service
             array('options' => array('min_range' => 1))
         );
 
-        if (
-            preg_match('/^.{1,150}$/u', $title) !== 1 ||
-            $category_id === false
-        ) {
-            return false;
+        if (preg_match('/^.{1,150}$/u', $title) !== 1) {
+            return $this->fail(
+                'عنوان تراکنش باید بین ۱ تا ۱۵۰ نویسه باشد.',
+                422
+            );
+        }
+
+        if ($category_id === false) {
+            return $this->fail(
+                'دسته‌بندی انتخاب‌شده معتبر نیست.',
+                422
+            );
+        }
+
+        // علت نامعتبر بودن مبلغ از Balance_service پرسیده می‌شود
+        // تا پیام دقیق (فرمت، صفر بودن یا بزرگ بودن) ساخته شود.
+        $amount_error = $this->balance_service
+            ->amount_error($data['amount']);
+
+        if ($amount_error !== null) {
+            return $this->fail($amount_error, 422);
         }
 
         $amount = $this->balance_service->normalize_amount(
             $data['amount']
         );
 
+        if (!is_string($data['transaction_date'])) {
+            return $this->fail(
+                'تاریخ تراکنش نامعتبر است.',
+                422
+            );
+        }
+
         if (
-            $amount === false ||
-            !is_string($data['transaction_date']) ||
             !preg_match(
                 '/^\d{4}-\d{2}-\d{2}$/',
                 $data['transaction_date']
             )
         ) {
-            return false;
+            return $this->fail(
+                'قالب تاریخ تراکنش نامعتبر است؛ تاریخ را از تقویم انتخاب کنید.',
+                422
+            );
         }
 
         $date = DateTime::createFromFormat(
@@ -106,13 +177,19 @@ class Transaction_service
             !$date ||
             $date->format('Y-m-d') !== $data['transaction_date']
         ) {
-            return false;
+            return $this->fail(
+                'تاریخ انتخاب‌شده یک روز واقعی نیست؛ تاریخ معتبر انتخاب کنید.',
+                422
+            );
         }
 
         $description = $data['description'] ?? null;
 
         if ($description !== null && !is_string($description)) {
-            return false;
+            return $this->fail(
+                'توضیحات تراکنش نامعتبر است.',
+                422
+            );
         }
 
         return array(
@@ -138,7 +215,10 @@ class Transaction_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $category = $this->CI->Category_model
@@ -147,9 +227,20 @@ class Transaction_service
                 $values['category_id']
             );
 
-        if (!$category || $category->deleted_at !== null) {
+        if (!$category) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'دسته‌بندی انتخاب‌شده پیدا نشد؛ فهرست دسته‌بندی‌ها را تازه‌سازی کنید.',
+                422
+            );
+        }
+
+        if ($category->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'دسته‌بندی انتخاب‌شده حذف شده است؛ دسته‌بندی دیگری انتخاب کنید.',
+                422
+            );
         }
 
         $values['user_id'] = $user_id;
@@ -175,26 +266,52 @@ class Transaction_service
             $db->trans_status() === false
         ) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'ثبت تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'create failed for user ' . $user_id
+            );
         }
 
-        return $db->trans_commit() ? $id : false;
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'ثبت تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed for user ' . $user_id
+            );
+        }
+
+        return $id;
     }
 
 
     public function get($user_id, $transaction_id)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $transaction = $this->CI->Transaction_model
             ->find_transaction_by_id($user_id, $transaction_id);
 
-        return (
-            $transaction &&
-            $transaction->deleted_at === null
-        ) ? $transaction : false;
+        if (!$transaction) {
+            return $this->fail(
+                'تراکنش موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if ($transaction->deleted_at !== null) {
+            return $this->fail(
+                'این تراکنش حذف شده است و در فهرست فعال نیست.',
+                404
+            );
+        }
+
+        return $transaction;
     }
 
 
@@ -208,11 +325,17 @@ class Transaction_service
         $filters = array()
     ) {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         if (!is_array($filters)) {
-            return false;
+            return $this->fail(
+                'مقادیر فیلترها نامعتبر است.',
+                422
+            );
         }
 
         $search = $filters['search'] ?? '';
@@ -230,7 +353,10 @@ class Transaction_service
             !is_string($date_to) ||
             !in_array($sort, array('newest', 'oldest'), true)
         ) {
-            return false;
+            return $this->fail(
+                'مقادیر فیلترها نامعتبر است.',
+                422
+            );
         }
 
         $search = trim($search);
@@ -249,16 +375,22 @@ class Transaction_service
             return $parsed && $parsed->format('Y-m-d') === $date;
         };
 
+        if (!$validate_date($date_from) || !$validate_date($date_to)) {
+            return $this->fail(
+                'فرمت تاریخ فیلترها نامعتبر است.',
+                422
+            );
+        }
+
         if (
-            !$validate_date($date_from) ||
-            !$validate_date($date_to) ||
-            (
-                $date_from !== '' &&
-                $date_to !== '' &&
-                $date_from > $date_to
-            )
+            $date_from !== '' &&
+            $date_to !== '' &&
+            $date_from > $date_to
         ) {
-            return false;
+            return $this->fail(
+                'تاریخ شروع فیلتر نمی‌تواند بعد از تاریخ پایان باشد.',
+                422
+            );
         }
 
         $filters = array(
@@ -274,7 +406,11 @@ class Transaction_service
             ->count_active_transactions_by_user_id($user_id, $filters);
 
         if ($total === false) {
-            return false;
+            return $this->fail(
+                'دریافت تراکنش‌ها انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'count failed for user ' . $user_id
+            );
         }
 
         if ($page === null) {
@@ -308,7 +444,11 @@ class Transaction_service
         }
 
         if ($transactions === false) {
-            return false;
+            return $this->fail(
+                'دریافت تراکنش‌ها انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'query failed for user ' . $user_id
+            );
         }
 
         return array(
@@ -329,14 +469,21 @@ class Transaction_service
     public function get_deleted($user_id, $page = null, $per_page = 10)
     {
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $total = $this->CI->Transaction_model
             ->count_deleted_transactions_by_user_id($user_id);
 
         if ($total === false) {
-            return false;
+            return $this->fail(
+                'دریافت تراکنش‌های حذف‌شده انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'count deleted failed for user ' . $user_id
+            );
         }
 
         if ($page === null) {
@@ -364,7 +511,11 @@ class Transaction_service
         }
 
         if ($transactions === false) {
-            return false;
+            return $this->fail(
+                'دریافت تراکنش‌های حذف‌شده انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'query deleted failed for user ' . $user_id
+            );
         }
 
         return array(
@@ -392,7 +543,10 @@ class Transaction_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $old = $this->CI->Transaction_model
@@ -401,9 +555,20 @@ class Transaction_service
                 $transaction_id
             );
 
-        if (!$old || $old->deleted_at !== null) {
+        if (!$old) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'تراکنش موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if ($old->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این تراکنش حذف شده و قابل ویرایش نیست.',
+                404
+            );
         }
 
         $old_category = $this->CI->Category_model
@@ -418,13 +583,30 @@ class Transaction_service
                 $values['category_id']
             );
 
-        if (
-            !$old_category ||
-            !$new_category ||
-            $new_category->deleted_at !== null
-        ) {
+        if (!$old_category) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'دسته‌بندی اصلی این تراکنش پیدا نشد؛ با پشتیبانی تماس بگیرید.',
+                500,
+                'original category ' . $old->category_id
+                    . ' missing for transaction ' . $transaction_id
+            );
+        }
+
+        if (!$new_category) {
+            $db->trans_rollback();
+            return $this->fail(
+                'دسته‌بندی انتخاب‌شده پیدا نشد؛ فهرست دسته‌بندی‌ها را تازه‌سازی کنید.',
+                422
+            );
+        }
+
+        if ($new_category->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'دسته‌بندی انتخاب‌شده حذف شده است؛ دسته‌بندی دیگری انتخاب کنید.',
+                422
+            );
         }
 
         $values['updated_at'] = date('Y-m-d H:i:s');
@@ -466,10 +648,24 @@ class Transaction_service
             $db->trans_status() === false
         ) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'ویرایش تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'update failed for transaction ' . $transaction_id
+                    . ' of user ' . $user_id
+            );
         }
 
-        return $db->trans_commit();
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'ویرایش تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed for transaction ' . $transaction_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        return true;
     }
 
 
@@ -480,7 +676,10 @@ class Transaction_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $transaction = $this->CI->Transaction_model
@@ -489,9 +688,20 @@ class Transaction_service
                 $transaction_id
             );
 
-        if (!$transaction || $transaction->deleted_at !== null) {
+        if (!$transaction) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'تراکنش موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if ($transaction->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این تراکنش قبلاً حذف شده است.',
+                404
+            );
         }
 
         $category = $this->CI->Category_model
@@ -502,7 +712,12 @@ class Transaction_service
 
         if (!$category) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'دسته‌بندی این تراکنش پیدا نشد؛ با پشتیبانی تماس بگیرید.',
+                500,
+                'category ' . $transaction->category_id
+                    . ' missing for transaction ' . $transaction_id
+            );
         }
 
         $now = date('Y-m-d H:i:s');
@@ -537,10 +752,24 @@ class Transaction_service
             $db->trans_status() === false
         ) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حذف تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'delete failed for transaction ' . $transaction_id
+                    . ' of user ' . $user_id
+            );
         }
 
-        return $db->trans_commit();
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'حذف تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed for transaction ' . $transaction_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        return true;
     }
 
 
@@ -551,7 +780,10 @@ class Transaction_service
 
         if (!$this->CI->User_model->find_active_by_id($user_id)) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'حساب کاربری شما در دسترس نیست؛ دوباره وارد شوید.',
+                401
+            );
         }
 
         $transaction = $this->CI->Transaction_model
@@ -560,14 +792,36 @@ class Transaction_service
                 $transaction_id
             );
 
-        if (
-            !$transaction ||
-            !$transaction->deleted_at ||
-            !$transaction->restore_until ||
-            strtotime($transaction->restore_until) <= time()
-        ) {
+        if (!$transaction) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'تراکنش موردنظر پیدا نشد یا در دسترس نیست.',
+                404
+            );
+        }
+
+        if (!$transaction->deleted_at) {
+            $db->trans_rollback();
+            return $this->fail(
+                'این تراکنش حذف نشده است و نیازی به بازیابی ندارد.',
+                404
+            );
+        }
+
+        if (!$transaction->restore_until) {
+            $db->trans_rollback();
+            return $this->fail(
+                'برای این تراکنش مهلت بازیابی ثبت نشده و قابل بازیابی نیست.',
+                404
+            );
+        }
+
+        if (strtotime($transaction->restore_until) <= time()) {
+            $db->trans_rollback();
+            return $this->fail(
+                'مهلت بازیابی این تراکنش به پایان رسیده است.',
+                404
+            );
         }
 
         $category = $this->CI->Category_model
@@ -576,9 +830,22 @@ class Transaction_service
                 $transaction->category_id
             );
 
-        if (!$category || $category->deleted_at !== null) {
+        if (!$category) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'دسته‌بندی این تراکنش پیدا نشد؛ با پشتیبانی تماس بگیرید.',
+                500,
+                'category ' . $transaction->category_id
+                    . ' missing for transaction ' . $transaction_id
+            );
+        }
+
+        if ($category->deleted_at !== null) {
+            $db->trans_rollback();
+            return $this->fail(
+                'دسته‌بندی این تراکنش حذف شده است؛ ابتدا آن دسته‌بندی را بازیابی کنید.',
+                422
+            );
         }
 
         if (
@@ -603,9 +870,23 @@ class Transaction_service
             $db->trans_status() === false
         ) {
             $db->trans_rollback();
-            return false;
+            return $this->fail(
+                'بازگردانی تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'restore failed for transaction ' . $transaction_id
+                    . ' of user ' . $user_id
+            );
         }
 
-        return $db->trans_commit();
+        if (!$db->trans_commit()) {
+            return $this->fail(
+                'بازگردانی تراکنش انجام نشد؛ خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.',
+                500,
+                'commit failed for transaction ' . $transaction_id
+                    . ' of user ' . $user_id
+            );
+        }
+
+        return true;
     }
 }
