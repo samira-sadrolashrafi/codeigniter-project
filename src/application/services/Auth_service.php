@@ -61,10 +61,99 @@ class Auth_service
 
         $user = $this->CI->User_model->find_by_username(trim($username));
 
-        if (!$user || $user->deleted_at !== null || !password_verify($password, $user->password)) {
+        if (!$user || !password_verify($password, $user->password)) {
             return false;
         }
 
+        if ($user->deleted_at !== null) {
+            if ($this->is_recovery_available($user)) {
+                return array(
+                    'status' => 'recovery_available'
+                );
+            }
+
+            return array(
+                'status' => 'recovery_expired'
+            );
+        }
+
+        return $this->complete_login($user, $remember);
+    }
+
+
+    public function restore_deleted_account($username, $password, $remember = false)
+    {
+        if (isLoggedIn()) {
+            return false;
+        }
+
+        if (!is_string($username) || !is_string($password)) {
+            return false;
+        }
+
+        $user = $this->CI->User_model->find_by_username(trim($username));
+
+        if (!$user || $user->deleted_at === null
+            || !password_verify($password, $user->password)) {
+            return false;
+        }
+
+        if (!$this->is_recovery_available($user)) {
+            return array(
+                'status' => 'recovery_expired'
+            );
+        }
+
+        $db = $this->CI->db;
+        $db->trans_begin();
+
+        $restored = $this->CI->User_model->restore_account(
+            (int) $user->id,
+            date('Y-m-d H:i:s')
+        );
+
+        if (!$restored) {
+            $db->trans_rollback();
+            return false;
+        }
+
+        $user = $this->CI->User_model->find_active_by_id((int) $user->id);
+
+        if (!$user || !$this->complete_login($user, $remember)
+            || $db->trans_status() === false) {
+            $db->trans_rollback();
+            $this->CI->load->library('session');
+            $this->CI->session->sess_destroy();
+            clearRememberCookie();
+            return false;
+        }
+
+        if (!$db->trans_commit()) {
+            $db->trans_rollback();
+            $this->CI->load->library('session');
+            $this->CI->session->sess_destroy();
+            clearRememberCookie();
+            return false;
+        }
+
+        return true;
+    }
+
+
+    private function is_recovery_available($user)
+    {
+        if (empty($user->restore_until)) {
+            return false;
+        }
+
+        $restore_timestamp = strtotime($user->restore_until);
+
+        return $restore_timestamp !== false && $restore_timestamp > time();
+    }
+
+
+    private function complete_login($user, $remember)
+    {
         if ($remember) {
             $token = bin2hex(random_bytes(32));
             $expires = time() + 30 * 86400;
@@ -77,8 +166,9 @@ class Auth_service
                 return false;
             }
 
-            if (!setcookie('remember_token',$token,rememberCookieOptions($expires))) {
+            if (!setcookie('remember_token', $token, rememberCookieOptions($expires))) {
                 $this->CI->User_model->clear_remember_token($user->id);
+                clearRememberCookie();
                 return false;
             }
 
@@ -90,7 +180,6 @@ class Auth_service
             clearRememberCookie();
         }
 
-        // Create session after successful login
         $this->CI->load->library('session');
 
         $this->CI->session->sess_regenerate(true);

@@ -36,15 +36,7 @@ class Profile extends CI_Controller
             $profile['question_id'] = $recovery->question_id;
         }
 
-        // This is the existing profile-only form token; no global CSRF settings are changed.
-        $form_token = $this->session->userdata('profile_form_token');
-        if (!is_string($form_token) || !preg_match('/\A[a-f0-9]{64}\z/', $form_token)) {
-            $form_token = bin2hex(random_bytes(32));
-            $this->session->set_userdata('profile_form_token', $form_token);
-        }
-
         $this->load->view('profile/index', array(
-            'profile_form_token' => $form_token,
             'profile' => $profile,
             'username' => $this->session->userdata('username')
         ));

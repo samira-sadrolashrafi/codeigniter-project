@@ -14,13 +14,7 @@ class Balance_service
         $this->CI->load->model('Balance_history_model');
     }
 
-    /**
-     * پیام دقیق نامعتبر بودن مبلغ، یا null وقتی مبلغ سالم است.
-     *
-     * Transaction_service و Dashboard_api از همین متد استفاده می‌کنند تا
-     * دلیل نامعتبر بودن مبلغ (فرمت، صفر بودن یا بزرگ بودن) روشن شود.
-     * قوانین آن دقیقاً همان قوانین normalize_amount است.
-     */
+
     public function amount_error($amount, $allow_negative = false)
     {
         if (!is_string($amount) && !is_int($amount)) {
@@ -45,7 +39,6 @@ class Balance_service
             return 'مبلغ واردشده بیش از حد مجاز است.';
         }
 
-        // بدون مجوز منفی، مبلغ صفر پذیرفته نمی‌شود.
         if (!$allow_negative && !preg_match('/[1-9]/', $unsigned)) {
             return 'مبلغ تراکنش نمی‌تواند صفر باشد.';
         }
@@ -53,7 +46,6 @@ class Balance_service
         return null;
     }
 
-    // Return a normalized DECIMAL(15,2) string, or false.
     public function normalize_amount($amount, $allow_negative = false)
     {
         if (!is_string($amount) && !is_int($amount)) {
@@ -99,9 +91,7 @@ class Balance_service
         return $result;
     }
 
-    /**
-     * Return the opposite of a signed amount without float arithmetic.
-     */
+  
     private function negate_amount($amount)
     {
         $amount = $this->normalize_amount($amount, true);
@@ -207,10 +197,7 @@ class Balance_service
         return $is_negative ? '-' . $amount : $amount;
     }
 
-    /**
-     * Record a transaction-related balance history event, shared by every
-     * service that changes the balance because of a transaction.
-     */
+    
     public function record_transaction_history_event(
         $user_id,
         $event_type,
@@ -291,8 +278,7 @@ class Balance_service
             return false;
         }
 
-        // A zero adjustment is a valid no-op.
-        // Do not create a history event when nothing changes.
+       
         if ($amount !== '0.00') {
             if (
                 !$this->CI->Balance_model->change_by(
@@ -304,7 +290,6 @@ class Balance_service
                 return false;
             }
 
-            // Record the adjustment in the same database transaction.
             $event_id = $this->CI->Balance_history_model->create_event(
                 array(
                     'user_id' => $user_id,
@@ -351,7 +336,6 @@ class Balance_service
             return false;
         }
 
-        // Calculate the change needed to bring the current balance to zero.
         $amount_delta = $this->negate_amount($balance->balance);
 
         if ($amount_delta === false) {
@@ -369,7 +353,6 @@ class Balance_service
             return false;
         }
 
-        // Keep the reset and its history entry atomic.
         $event_id = $this->CI->Balance_history_model->create_event(
             array(
                 'user_id' => $user_id,

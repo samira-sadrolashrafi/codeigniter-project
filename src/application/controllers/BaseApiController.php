@@ -10,7 +10,6 @@ class BaseApiController extends CI_Controller
         $this->load->library('session');
         $this->load->helper('session');
 
-        // Read the authenticated user once per request and reuse it in actions.
         $this->user_id = $this->session->userdata('user_id');
 
         if ($require_authentication) {
@@ -25,7 +24,7 @@ class BaseApiController extends CI_Controller
 
     private function checkAuth()
     {
-        if (!$this->user_id) {
+        if (!$this->has_active_authenticated_user()) {
             $this->respond_json(false, 'ابتدا وارد حساب کاربری شوید.', 401);
             $this->output->_display();
             exit;
@@ -34,12 +33,33 @@ class BaseApiController extends CI_Controller
 
     protected function require_authenticated_user()
     {
-        if (!$this->user_id) {
+        if (!$this->has_active_authenticated_user()) {
             $this->respond_json(false, 'ابتدا وارد حساب کاربری شوید.', 401);
             return false;
         }
 
         return true;
+    }
+
+    private function has_active_authenticated_user()
+    {
+        if (!$this->user_id || !is_numeric($this->user_id)) {
+            return false;
+        }
+
+        $this->load->model('User_model');
+
+        $user = $this->User_model->find_active_by_id((int) $this->user_id);
+
+        if ($user) {
+            return true;
+        }
+
+        clearRememberCookie();
+        $this->session->sess_destroy();
+        $this->user_id = null;
+
+        return false;
     }
 
     protected function respond_json($success, $message, $status_code = 200, $data = array())
@@ -59,13 +79,6 @@ class BaseApiController extends CI_Controller
             ->set_output(json_encode($response, JSON_UNESCAPED_UNICODE));
     }
 
-    /**
-     * پاسخ خطای یک عملیات بر اساس آخرین علت ثبت‌شده در سرویس.
-     *
-     * سرویس‌ها هنگام شکست، پیام و وضعیت HTTP علت واقعی را ثبت می‌کنند؛
-     * این جا با یک تابع مشترک، همان پیام و وضعیت به کاربر می‌رسد و اگر
-     * سرویس دلیلی ثبت نکرده باشد، پیام عمومی محترمانه برگردانده می‌شود.
-     */
     protected function respond_service_error(
         $service,
         $fallback_message,

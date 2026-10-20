@@ -70,10 +70,15 @@ $route['auth/register']['post'] = 'auth_api/register';
 
 $route['auth/logout']['post'] = 'auth_api/logout';
 
+$route['auth/account/restore']['post'] = 'auth_api/restore_account';
+
 // Account recovery API (all POST, no additional page).
 $route['auth/recovery/question']['post'] = 'recovery_api/question';
+
 $route['auth/recovery/verify']['post'] = 'recovery_api/verify';
+
 $route['auth/recovery/reset']['post'] = 'recovery_api/reset';
+
 $route['auth/recovery/enroll']['post'] = 'recovery_api/enroll';
 
 
@@ -95,6 +100,7 @@ $route['api/dashboard/cashflow']['get'] = 'dashboard_api/cashflow';
 
 // Category API
 $route['api/categories/deleted']['get'] = 'category_api/deleted';
+
 $route['api/categories']['get'] = 'category_api/index';
 
 $route['api/categories/store']['post'] = 'category_api/store';
@@ -122,4 +128,7 @@ $route['api/transactions/(:num)/restore']['post'] = 'transaction_api/restore/$1'
 
 // Profile API
 $route['profile']['get'] = 'profile/index';
+
 $route['api/profile']['post'] = 'profile_api/update';
+
+$route['api/profile/delete-account']['post'] = 'profile_api/delete_account';

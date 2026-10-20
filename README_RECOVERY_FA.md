@@ -20,7 +20,7 @@
   - `POST /auth/recovery/verify`
   - `POST /auth/recovery/reset`
   - `POST /auth/recovery/enroll` (نیازمند ورود و رمز فعلی)
-- محدودسازی تلاش‌های ورود همچنان فعال است و به بازیابی رمز ارتباطی ندارد (`006`).
+- محدودسازی تلاش‌های ورود حذف شده است. Migration شماره `006` فقط به‌عنوان تاریخچهٔ طرح پایگاه داده باقی مانده و اجرای آن روی پایگاه دادهٔ جدید جدول `login_throttles` را ایجاد می‌کند؛ حذف خودکار آن از پایگاه داده‌های موجود انجام نمی‌شود تا داده‌ای پاک نشود.
 - Migration شماره `010` جدول قدیمی `recovery_throttles` را با `DROP TABLE IF EXISTS` حذف می‌کند؛ جدول و اطلاعات `user_recovery` حفظ می‌شوند. Migrationهای قدیمی تغییر نکرده‌اند.
 
 ## نصب
@@ -31,7 +31,7 @@
 
 ### گزینه ۲: پچ فایل‌ها
 
-فایل `codeigniter_account_recovery_patch.zip` را در **ریشه ریپو** Extract کنید تا پوشه `src/` روی سورس موجود ادغام شود. اگر از قبل پچ Rate Limiting قبلی را نصب کرده‌اید، نسخه پچ جدید همان قابلیت را نگه می‌دارد. پیش از جایگزینی فایل‌های تغییر یافته، تغییرات محلی را با Diff بررسی کنید.
+فایل `codeigniter_account_recovery_patch.zip` را در **ریشه ریپو** Extract کنید تا پوشه `src/` روی سورس موجود ادغام شود. پیش از جایگزینی فایل‌های تغییر یافته، تغییرات محلی را با Diff بررسی کنید.
 
 ### اجرای Migration
 
@@ -78,15 +78,13 @@ x-www-form-urlencoded: nonce=<NONCE_FROM_VERIFY>, password=<NEW_PASSWORD>, passw
 ## فایل‌های تغییر‌یافته و جدید
 
 - `src/application/controllers/Auth.php` (انتقال سؤال‌ها به صفحه ثبت‌نام)
-- `src/application/controllers/Auth_api.php` (ثبت‌نام و حفظ Rate Limiting ورود)
+- `src/application/controllers/Auth_api.php` (ثبت‌نام و ورود بدون محدودسازی تلاش‌ها)
 - `src/application/controllers/Recovery_api.php` (جدید)
 - `src/application/services/Auth_service.php` (درج اتمیک سؤال و پاسخ همراه ثبت‌نام)
 - `src/application/models/Recovery_model.php` (جدید)
-- `src/application/models/Login_throttle_model.php` (پچ قبل)
 - `src/application/config/recovery_questions.php` (جدید)
 - `src/application/config/routes.php` (چهار Route جدید)
 - `src/application/config/migration.php` (نسخه ۱۰)
-- `src/application/migrations/006_create_login_throttles.php` (پچ قبل)
 - `src/application/migrations/007_create_account_recovery.php` (جدید)
 - `src/application/migrations/010_drop_recovery_throttles.php` (جدید؛ حذف جدول قدیمی محدودسازی بازیابی)
 - `src/application/controllers/Recovery_api.php` و `src/application/services/Profile_service.php` (حذف محدودسازی تلاش بازیابی)

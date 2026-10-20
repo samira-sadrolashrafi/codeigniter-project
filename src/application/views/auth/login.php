@@ -1,12 +1,12 @@
 <?php
- defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
  * Tarazino | Login page (CodeIgniter 3).
  *
  * Bootstrap-first markup, Font Awesome icon fonts, no page-specific JS/CSS.
- * All IDs, input names, API URLs and the recovery modal stay compatible with
- * assets/js/auth.js and assets/js/recovery.js.
+ * All IDs, input names, API URLs and recovery modals stay compatible
+ * with assets/js/auth.js and assets/js/recovery.js.
  *
  * The presentation can later become a Vue LoginView component; API behavior
  * remains outside this view.
@@ -55,7 +55,6 @@ $this->load->view('layouts/header', array(
                                 <h1 class="h3 fw-bold mb-2" id="loginPageTitle">ورود به حساب کاربری</h1>
                                 <p class="text-body-secondary mb-4">نام کاربری و رمز عبورت رو وارد کن.</p>
 
-                                <!-- Existing auth.js writes success / failure messages here. -->
                                 <div id="loginMessage" class="alert d-none" role="alert"
                                      aria-live="polite" aria-atomic="true"></div>
 
@@ -109,7 +108,6 @@ $this->load->view('layouts/header', array(
                                         <label class="form-check-label" for="remember">مرا به خاطر بسپار</label>
                                     </div>
 
-                                    <!-- Keep text-only: auth.js changes textContent while submitting. -->
                                     <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
                                         ورود به حساب
                                     </button>
@@ -160,7 +158,47 @@ $this->load->view('layouts/header', array(
     </div>
 </main>
 
-<!-- Password recovery stays separate from account recovery-question enrollment. -->
+<!-- Confirmation modal for restoring a deleted account. -->
+<div class="modal fade" id="accountRestoreModal" tabindex="-1"
+     aria-labelledby="accountRestoreModalTitle" aria-hidden="true"
+     data-restore-url="<?php echo html_escape(site_url('auth/account/restore')); ?>">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 rounded-4 shadow">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5 fw-bold" id="accountRestoreModalTitle">
+                    بازیابی حساب کاربری
+                </h2>
+                <button type="button" class="btn-close ms-0" data-bs-dismiss="modal"
+                        aria-label="بستن"></button>
+            </div>
+
+            <div class="modal-body">
+                <p class="mb-3">
+                    این حساب قبلاً حذف شده است، اما هنوز در مهلت ۳۰ روزه بازیابی قرار دارد.
+                </p>
+                <p class="text-body-secondary mb-3">
+                    با تأیید بازیابی، حساب شما دوباره فعال می‌شود و وارد آن خواهید شد.
+                </p>
+
+                <div id="accountRestoreMessage" class="alert d-none"
+                     role="alert" aria-live="polite" aria-atomic="true"></div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary"
+                        data-bs-dismiss="modal">
+                    انصراف
+                </button>
+                <button type="button" class="btn btn-primary"
+                        id="restoreAccountButton">
+                    بازیابی حساب و ورود
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Existing password recovery remains unchanged. -->
 <?php $this->load->view('auth/recovery_modal'); ?>
 
 <?php

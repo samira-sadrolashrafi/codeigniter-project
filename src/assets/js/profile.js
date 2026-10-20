@@ -9,9 +9,8 @@
         const form = $('profileForm');
         const ui = w.TarazinoProfileUI && w.TarazinoProfileUI.initialize();
         if (!ui) return;
-        // URL is supplied by profile/index.php; a profile-only token is present in FormData.
+        // URL is supplied by profile/index.php.
         const endpoint = (root.dataset.profileApiUrl || '').trim();
-        const token = form.querySelector('input[name="profile_form_token"]');
         let initialQuestion = $('profileRecoveryQuestion').value;
         const usernameValue = () => $('profileUsername').value.trim();
         let saving = false;
@@ -113,8 +112,8 @@
             if (saving) return;
             const draft = validate();
             if (!draft) return;
-            if (!endpoint || !token || !token.value) {
-                message('آدرس API یا توکن فرم پروفایل در صفحه وجود ندارد. صفحه را دوباره بارگذاری کنید.');
+            if (!endpoint) {
+                message('آدرس API پروفایل در صفحه وجود ندارد. صفحه را دوباره بارگذاری کنید.');
                 return;
             }
             if (!w.TarazinoApi) {

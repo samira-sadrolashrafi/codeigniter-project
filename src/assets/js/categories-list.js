@@ -380,15 +380,6 @@
                 });
             }
 
-            // حفظ پیام راهنما و نشان موجود در صفحه
-            const badge = d.querySelector(
-                '[data-component="category-filters"] .badge'
-            );
-
-            if (badge) {
-                badge.textContent = 'فعال';
-            }
-
             const note = $('categoriesFiltersNote');
 
             if (note) {

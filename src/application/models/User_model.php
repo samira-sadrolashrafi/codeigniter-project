@@ -10,14 +10,16 @@ class User_model extends CI_Model
         if (!$this->db->insert($this->table, $data)) {
             return false;
         }
+
         return (int) $this->db->insert_id();
     }
 
-    // Includes soft-deleted users: username/email are globally UNIQUE in the ERD.
+
     public function find_by_username($username)
     {
         return $this->db->where('username', $username)->get($this->table)->row();
     }
+
 
     // Check whether a session still belongs to an active user.
     public function find_active_by_id($user_id)
@@ -29,18 +31,22 @@ class User_model extends CI_Model
             ->row();
     }
 
+
     public function find_by_email($email)
     {
         return $this->db->where('email', $email)->get($this->table)->row();
     }
+
 
     public function find_by_remember_token($hashed_token)
     {
         return $this->db
             ->where('remember_token', $hashed_token)
             ->where('deleted_at', null)
-            ->get($this->table)->row();
+            ->get($this->table)
+            ->row();
     }
+
 
     public function update_remember_token($user_id, $hash, $expires_at)
     {
@@ -56,11 +62,47 @@ class User_model extends CI_Model
         return $query_success && $this->db->affected_rows() === 1;
     }
 
+
     public function clear_remember_token($user_id)
     {
-        return $this->db->where('id', $user_id)->update($this->table, array(
-            'remember_token' => null,
-            'remember_token_expires_at' => null
-        ));
+        return $this->db
+            ->where('id', $user_id)
+            ->update($this->table, array(
+                'remember_token' => null,
+                'remember_token_expires_at' => null
+            ));
+    }
+
+
+    public function soft_delete_account($user_id, $deleted_at, $restore_until)
+    {
+        $query_success = $this->db
+            ->where('id', $user_id)
+            ->where('deleted_at', null)
+            ->update($this->table, array(
+                'deleted_at' => $deleted_at,
+                'restore_until' => $restore_until,
+                'remember_token' => null,
+                'remember_token_expires_at' => null
+            ));
+
+        return $query_success && $this->db->affected_rows() === 1;
+    }
+
+
+    public function restore_account($user_id, $now)
+    {
+        $query_success = $this->db
+            ->where('id', $user_id)
+            ->where('deleted_at IS NOT NULL', null, false)
+            ->where('restore_until >=', $now)
+            ->update($this->table, array(
+                'deleted_at' => null,
+                'restore_until' => null,
+                'remember_token' => null,
+                'remember_token_expires_at' => null
+            ));
+
+        return $query_success && $this->db->affected_rows() === 1;
     }
 }

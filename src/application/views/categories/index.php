@@ -101,9 +101,6 @@ $view_username = isset($username) && is_string($username)
                                 جست‌وجو و فیلتر
                             </h3>
 
-                            <span class="badge text-bg-secondary">
-                                دسته‌بندی‌های فعال
-                            </span>
                         </div>
 
                         <div class="row g-3 align-items-end">
